@@ -6,6 +6,20 @@
              mc:Ignorable="d" 
              d:DesignHeight="700" d:DesignWidth="900">
 
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+        <!-- 反転BoolToVisibility -->
+        <Style x:Key="InverseVisibilityStyle" TargetType="FrameworkElement">
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -30,12 +44,32 @@
                     </TextBlock>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Text="{Binding Run.RouteName}" Foreground="#AAAAAA" FontSize="12"/>
-                        <Border Background="#4CAF50" CornerRadius="3" Padding="6,2" Margin="10,0,0,0"
-                                Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <!-- 自動モード表示 -->
+                        <Border Background="#4CAF50" CornerRadius="3" Padding="6,2" Margin="10,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoMode}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <TextBlock Text="AUTO" Foreground="White" FontSize="10" FontWeight="Bold"/>
                         </Border>
-                        <Border Background="#FF9800" CornerRadius="3" Padding="6,2" Margin="10,0,0,0"
-                                Visibility="{Binding IsAutoMode, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <!-- 手動モード表示 -->
+                        <Border Background="#FF9800" CornerRadius="3" Padding="6,2" Margin="10,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoMode}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <TextBlock Text="MANUAL" Foreground="White" FontSize="10" FontWeight="Bold"/>
                         </Border>
                     </StackPanel>
@@ -148,21 +182,50 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="15">
 
-                            <!-- AIステップ：プロンプト表示 -->
-                            <StackPanel Visibility="{Binding IsAiStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <!-- ========== AIステップ ========== -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsAiStep}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
 
-                                <!-- 自動/手動モード表示 -->
-                                <Border Background="#E8F5E9" Padding="10" Margin="0,0,0,15" CornerRadius="4"
-                                        Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <!-- 自動モード案内 -->
+                                <Border Background="#E8F5E9" Padding="10" Margin="0,0,0,15" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAutoMode}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="🤖" FontSize="16" Margin="0,0,8,0"/>
-                                        <TextBlock Text="自動モード ON: 「自動実行」をクリックするとAIへの投入・応答取得を自動で行います"
+                                        <TextBlock Text="自動モード ON: 「実行」をクリックするとAIへの投入・応答取得を自動で行います"
                                                    Foreground="#2E7D32" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
 
-                                <Border Background="#FFF3E0" Padding="10" Margin="0,0,0,15" CornerRadius="4"
-                                        Visibility="{Binding IsAutoMode, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                <!-- 手動モード案内 -->
+                                <Border Background="#FFF3E0" Padding="10" Margin="0,0,0,15" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAutoMode}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="✋" FontSize="16" Margin="0,0,8,0"/>
                                         <TextBlock Text="手動モード: プロンプトをコピーしてAIに投入し、結果を貼り付けてください"
@@ -187,33 +250,65 @@
                                 </StackPanel>
 
                                 <!-- 実行ボタン（手動モードでない場合） -->
-                                <StackPanel Visibility="{Binding IsManualMode, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue=Visible}"
-                                            Margin="0,20,0,0">
+                                <StackPanel Margin="0,20,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsManualMode}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
 
                                     <StackPanel Orientation="Horizontal">
-                                        <!-- 自動モード用ボタン -->
-                                        <Button Content="▶ 自動実行" Command="{Binding ExecuteAutoCommand}"
-                                                Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        <!-- 統合実行ボタン -->
+                                        <Button Content="▶ 実行" Command="{Binding ExecuteStepCommand}"
                                                 Padding="20,10" Margin="0,0,10,0"
-                                                Background="#4CAF50" Foreground="White" BorderThickness="0" FontWeight="Bold"
-                                                IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolConverter}}"/>
+                                                Background="#4CAF50" Foreground="White" BorderThickness="0" FontWeight="Bold">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="IsEnabled" Value="True"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
 
-                                        <!-- 手動モードへ切り替え -->
+                                        <!-- 手動モードへ切り替え（自動モード時のみ表示） -->
                                         <Button Content="手動モードへ" Command="{Binding SwitchToManualCommand}"
-                                                Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                Padding="15,10"/>
-
-                                        <!-- 手動モード用ボタン（AUTO_MODE=OFF時） -->
-                                        <Button Content="▶ 実行（手動入力へ）" Command="{Binding ExecuteStepCommand}"
-                                                Visibility="{Binding IsAutoMode, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                                Padding="20,10"
-                                                Background="#0078D4" Foreground="White" BorderThickness="0"/>
+                                                Padding="15,10">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsAutoMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                     </StackPanel>
                                 </StackPanel>
 
                                 <!-- 手動入力モード -->
-                                <StackPanel Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
-                                            Margin="0,20,0,0">
+                                <StackPanel Margin="0,20,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsManualMode}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+
                                     <Border Background="#FFF3E0" Padding="10" Margin="0,0,0,10">
                                         <TextBlock Text="⚠ 手動モード: AIの出力を下記に貼り付けてください" Foreground="#E65100" FontWeight="SemiBold"/>
                                     </Border>
@@ -235,8 +330,19 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <!-- Core採択ステップ -->
-                            <StackPanel Visibility="{Binding IsCoreAdoptStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <!-- ========== Core採択ステップ ========== -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsCoreAdoptStep}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+
                                 <Border Background="#E3F2FD" Padding="10" Margin="0,0,0,15" CornerRadius="4">
                                     <TextBlock Text="👤 人間介入ステップ: 核の候補から1つを選択（または自分で記述）してください"
                                                Foreground="#1565C0"/>
@@ -247,8 +353,17 @@
                                 <ItemsControl ItemsSource="{Binding CoreCandidates}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="15" Margin="0,0,0,10"
-                                                    Background="{Binding IsSelected, Converter={StaticResource BoolToBackgroundConverter}}">
+                                            <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="15" Margin="0,0,0,10">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="White"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Background" Value="#E3F2FD"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
@@ -281,8 +396,17 @@
                                 </ItemsControl>
 
                                 <!-- 自分で書く -->
-                                <Border BorderBrush="#0078D4" BorderThickness="2" Padding="15" Margin="0,10,0,0"
-                                        Background="{Binding UseCustomCore, Converter={StaticResource BoolToBackgroundConverter}}">
+                                <Border BorderBrush="#0078D4" BorderThickness="2" Padding="15" Margin="0,10,0,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="White"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding UseCustomCore}" Value="True">
+                                                    <Setter Property="Background" Value="#E3F2FD"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -316,8 +440,19 @@
                                         Background="#4CAF50" Foreground="White" BorderThickness="0" FontWeight="Bold"/>
                             </StackPanel>
 
-                            <!-- Winner選択ステップ -->
-                            <StackPanel Visibility="{Binding IsWinnerSelectStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <!-- ========== Winner選択ステップ ========== -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsWinnerSelectStep}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+
                                 <Border Background="#E3F2FD" Padding="10" Margin="0,0,0,15" CornerRadius="4">
                                     <TextBlock Text="👤 人間介入ステップ: 改稿案を比較してWinnerを選択してください"
                                                Foreground="#1565C0"/>
@@ -331,8 +466,19 @@
                                         Background="#0078D4" Foreground="White" BorderThickness="0" FontWeight="Bold"/>
                             </StackPanel>
 
-                            <!-- Exportステップ -->
-                            <StackPanel Visibility="{Binding IsExportStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <!-- ========== Exportステップ ========== -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsExportStep}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+
                                 <Border Background="#E8F5E9" Padding="10" Margin="0,0,0,15" CornerRadius="4">
                                     <TextBlock Text="✓ 全ステップ完了！エクスポートしてRunを終了できます"
                                                Foreground="#2E7D32"/>
@@ -366,7 +512,18 @@
                            VerticalAlignment="Center" Margin="20,0"
                            TextWrapping="Wrap"/>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}}">
+                <!-- 処理中インジケータ -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
                     <TextBlock Text="⏳ 処理中..." VerticalAlignment="Center" Foreground="#FF9800" FontWeight="Bold"/>
                 </StackPanel>
             </Grid>

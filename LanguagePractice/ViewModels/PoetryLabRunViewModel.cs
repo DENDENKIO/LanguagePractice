@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -72,13 +71,9 @@ namespace LanguagePractice.ViewModels
         private readonly PoetryRunService _runService;
         private readonly PoetryPromptBuilder _promptBuilder;
         private readonly PoetryOutputParser _outputParser;
-        private readonly PoetryLabSettingsReader _settingsReader;
+        private readonly SettingsService _settingsService;
         private readonly int _projectId;
         private readonly int _runId;
-
-        // 自動モード用：BrowserWindow参照
-        private BrowserWindow? _browserWindow;
-        private TaskCompletionSource<string>? _autoModeCompletionSource;
 
         #region Properties
 
@@ -235,7 +230,6 @@ namespace LanguagePractice.ViewModels
         public ICommand BackCommand { get; }
         public ICommand CancelRunCommand { get; }
         public ICommand ExecuteStepCommand { get; }
-        public ICommand ExecuteAutoCommand { get; }
         public ICommand RetryStepCommand { get; }
         public ICommand SubmitManualInputCommand { get; }
         public ICommand CopyPromptCommand { get; }
@@ -257,13 +251,12 @@ namespace LanguagePractice.ViewModels
             _runService = new PoetryRunService(_db);
             _promptBuilder = new PoetryPromptBuilder();
             _outputParser = new PoetryOutputParser();
-            _settingsReader = new PoetryLabSettingsReader();
+            _settingsService = new SettingsService();
 
             // コマンド初期化
             BackCommand = new RelayCommand(GoBack);
             CancelRunCommand = new RelayCommand(CancelRun);
             ExecuteStepCommand = new RelayCommand(ExecuteCurrentStep);
-            ExecuteAutoCommand = new RelayCommand(async () => await ExecuteAutoModeAsync());
             RetryStepCommand = new RelayCommand(RetryStep);
             SubmitManualInputCommand = new RelayCommand(SubmitManualInput);
             CopyPromptCommand = new RelayCommand(CopyPrompt);
@@ -273,7 +266,7 @@ namespace LanguagePractice.ViewModels
             SwitchToManualCommand = new RelayCommand(SwitchToManual);
 
             // 自動モード設定確認
-            IsAutoMode = _settingsReader.IsAutoMode();
+            IsAutoMode = _settingsService.GetBoolean("AUTO_MODE", false);
 
             // データ読み込み
             LoadData();
@@ -416,130 +409,181 @@ namespace LanguagePractice.ViewModels
 
         #endregion
 
-        #region Auto Mode Execution
+        #region Step Execution
 
         /// <summary>
-        /// 自動モードでステップを実行
+        /// ステップ実行（TEXT_GENと同じ方式：BrowserWindow使用）
         /// </summary>
-        private async Task ExecuteAutoModeAsync()
+        private void ExecuteCurrentStep()
         {
             if (CurrentStep == null || IsRunning) return;
-            if (CurrentStep.IsHumanStep || CurrentStep.Name == "EXPORT") return;
+
+            // Exportステップは別処理
+            if (CurrentStep.Name == "EXPORT")
+            {
+                ExecuteExport();
+                return;
+            }
+
+            // 人間介入ステップは実行ボタンを押さない
+            if (CurrentStep.IsHumanStep) return;
 
             IsRunning = true;
             CurrentStep.Status = "RUNNING";
-            StatusMessage = $"自動実行中: {CurrentStep.DisplayName}";
 
+            // StepLog作成
+            var inputs = GatherInputs(CurrentStep);
+            var inputKeysJson = JsonSerializer.Serialize(inputs.Keys.ToList());
+            var stepLogId = _db.CreateAiStepLog(_runId, CurrentStep.Index, CurrentStep.Name, inputKeysJson, CurrentPrompt);
+            CurrentStep.StepLogId = stepLogId;
+            _db.UpdateAiStepLogStatus(stepLogId, "RUNNING");
+
+            // プロンプトをクリップボードにコピー
+            Clipboard.SetText(CurrentPrompt);
+
+            // AI設定取得
+            string siteId = _settingsService.GetValue("AI_SITE_ID", "GENSPARK");
+            var profile = AiSiteCatalog.GetByIdOrDefault(siteId);
+            string aiUrl = _settingsService.GetValue("AI_URL", profile.Url);
+
+            if (string.IsNullOrEmpty(aiUrl))
+            {
+                aiUrl = profile.Url;
+            }
+
+            // 自動モード判定
+            bool isAutoMode = _settingsService.GetBoolean("AUTO_MODE", false);
+
+            if (isAutoMode && !profile.SupportsAuto)
+            {
+                StatusMessage = "注意：このサイトは自動操作が不安定です。手動貼り付けになる可能性があります。";
+            }
+
+            // ★★★ 常にBrowserWindow（WebView2）を使用 ★★★
+            if (isAutoMode)
+            {
+                StatusMessage = "自動ブラウザモードで実行中...";
+                var browser = new BrowserWindow(aiUrl, CurrentPrompt, profile.Id);
+
+                if (browser.ShowDialog() == true)
+                {
+                    string result = browser.ResultText;
+
+                    if (!string.IsNullOrWhiteSpace(result))
+                    {
+                        // 自動取得成功 → 解析して保存
+                        StatusMessage = "自動取得成功。解析を実行します...";
+                        ProcessAiOutput(result, stepLogId);
+                        return;
+                    }
+                    else
+                    {
+                        // 自動取得失敗 → 手動モードへ
+                        StatusMessage = "自動取得できませんでした。手動で貼り付けてください。";
+                    }
+                }
+                else
+                {
+                    StatusMessage = "ブラウザ操作がキャンセルされました。";
+                }
+            }
+            else
+            {
+                // 手動モードでもBrowserWindowを開く（外部ブラウザではない）
+                StatusMessage = "ブラウザを開きます。結果を手動でコピーしてください。";
+                var browser = new BrowserWindow(aiUrl, CurrentPrompt, profile.Id);
+
+                if (browser.ShowDialog() == true)
+                {
+                    string result = browser.ResultText;
+
+                    if (!string.IsNullOrWhiteSpace(result))
+                    {
+                        StatusMessage = "結果を取得しました。解析を実行します...";
+                        ProcessAiOutput(result, stepLogId);
+                        return;
+                    }
+                }
+            }
+
+            // ここに来たら手動入力モードへ
+            IsManualMode = true;
+            IsRunning = false;
+        }
+
+        /// <summary>
+        /// AI出力を解析して保存
+        /// </summary>
+        private void ProcessAiOutput(string rawOutput, int stepLogId)
+        {
             try
             {
-                // StepLog作成
-                var inputs = GatherInputs(CurrentStep);
-                var inputKeysJson = JsonSerializer.Serialize(inputs.Keys.ToList());
-                var stepLogId = _db.CreateAiStepLog(_runId, CurrentStep.Index, CurrentStep.Name, inputKeysJson, CurrentPrompt);
-                CurrentStep.StepLogId = stepLogId;
-                _db.UpdateAiStepLogStatus(stepLogId, "RUNNING");
+                var expectedSection = GetExpectedSection(CurrentStep!.Name);
+                PoetryParseResult parseResult;
 
-                // AI URL取得
-                var aiUrl = _settingsReader.GetAiUrl();
-                if (string.IsNullOrEmpty(aiUrl))
+                if (CurrentStep.Name == "POEM_REVISION_GEN")
                 {
-                    StatusMessage = "AI URLが設定されていません。手動モードに切り替えます。";
+                    parseResult = _outputParser.ParseRevisions(rawOutput);
+                }
+                else
+                {
+                    parseResult = _outputParser.Parse(rawOutput, expectedSection);
+                }
+
+                if (!parseResult.Success)
+                {
+                    // パース失敗 → 手動モードへ
+                    StatusMessage = $"パースエラー: {parseResult.ErrorMessage}。手動で修正してください。";
+                    ManualInput = rawOutput;
                     IsManualMode = true;
                     IsRunning = false;
                     return;
                 }
 
-                // BrowserWindowを開いて自動実行
-                var result = await ExecuteWithBrowserAsync(aiUrl, CurrentPrompt);
+                // 保存
+                var parsedJson = JsonSerializer.Serialize(parseResult.Data);
+                _db.UpdateAiStepLogResult(stepLogId, rawOutput, parsedJson, "SUCCESS");
+                SaveAssets(CurrentStep, parseResult);
 
-                if (result.Success)
+                if (CurrentStep.Name == "POEM_ISSUE_GEN")
                 {
-                    // パース
-                    var expectedSection = GetExpectedSection(CurrentStep.Name);
-                    PoetryParseResult parseResult;
-
-                    if (CurrentStep.Name == "POEM_REVISION_GEN")
-                    {
-                        parseResult = _outputParser.ParseRevisions(result.Output);
-                    }
-                    else
-                    {
-                        parseResult = _outputParser.Parse(result.Output, expectedSection);
-                    }
-
-                    if (!parseResult.Success)
-                    {
-                        StatusMessage = $"パースエラー: {parseResult.ErrorMessage}。手動モードに切り替えます。";
-                        ManualInput = result.Output; // 取得した出力を手動入力欄にセット
-                        IsManualMode = true;
-                        IsRunning = false;
-                        return;
-                    }
-
-                    // 保存
-                    var parsedJson = JsonSerializer.Serialize(parseResult.Data);
-                    _db.UpdateAiStepLogResult(stepLogId, result.Output, parsedJson, "SUCCESS");
-                    SaveAssets(CurrentStep, parseResult);
-
-                    if (CurrentStep.Name == "POEM_ISSUE_GEN")
-                    {
-                        SaveIssues(stepLogId);
-                    }
-
-                    CurrentStep.Status = "SUCCESS";
-                    StatusMessage = $"完了: {CurrentStep.DisplayName}";
-
-                    // 次のステップへ
-                    MoveToNextStep();
+                    SaveIssues(stepLogId);
                 }
-                else
-                {
-                    StatusMessage = $"自動実行失敗: {result.ErrorMessage}。手動モードに切り替えます。";
-                    IsManualMode = true;
-                }
+
+                CurrentStep.Status = "SUCCESS";
+                StatusMessage = $"完了: {CurrentStep.DisplayName}";
+                IsRunning = false;
+
+                // 次のステップへ自動遷移
+                MoveToNextStep();
             }
             catch (Exception ex)
             {
-                StatusMessage = $"エラー: {ex.Message}。手動モードに切り替えます。";
+                StatusMessage = $"エラー: {ex.Message}";
+                ManualInput = rawOutput;
                 IsManualMode = true;
-            }
-            finally
-            {
                 IsRunning = false;
             }
         }
 
         /// <summary>
-        /// BrowserWindowを使用してAIに問い合わせ
+        /// 手動入力を送信
         /// </summary>
-        private async Task<(bool Success, string Output, string? ErrorMessage)> ExecuteWithBrowserAsync(string aiUrl, string prompt)
+        private void SubmitManualInput()
         {
-            try
+            if (CurrentStep == null || string.IsNullOrWhiteSpace(ManualInput)) return;
+
+            var stepLogId = CurrentStep.StepLogId;
+            if (stepLogId == null)
             {
-                _autoModeCompletionSource = new TaskCompletionSource<string>();
-
-                var siteId = _settingsReader.GetAiSiteId();
-
-                // BrowserWindow を生成
-                _browserWindow = new BrowserWindow(aiUrl, prompt, siteId);
-
-                // モーダル表示し、ユーザー操作または内部処理で閉じられるのを待つ
-                var dialogResult = _browserWindow.ShowDialog();
-
-                if (dialogResult == true)
-                {
-                    var output = _browserWindow.ResultText ?? string.Empty;
-                    return (true, output, null);
-                }
-                else
-                {
-                    return (false, string.Empty, "ブラウザでの実行がキャンセルされました");
-                }
+                // StepLogがなければ作成
+                var inputs = GatherInputs(CurrentStep);
+                var inputKeysJson = JsonSerializer.Serialize(inputs.Keys.ToList());
+                stepLogId = _db.CreateAiStepLog(_runId, CurrentStep.Index, CurrentStep.Name, inputKeysJson, CurrentPrompt);
+                CurrentStep.StepLogId = stepLogId;
             }
-            catch (Exception ex)
-            {
-                return (false, string.Empty, ex.Message);
-            }
+
+            ProcessAiOutput(ManualInput, stepLogId.Value);
         }
 
         /// <summary>
@@ -549,110 +593,6 @@ namespace LanguagePractice.ViewModels
         {
             IsManualMode = true;
             StatusMessage = "手動モードに切り替えました。プロンプトをコピーしてAIに投入してください。";
-        }
-
-        #endregion
-
-        #region Manual Mode Execution
-
-        private void ExecuteCurrentStep()
-        {
-            if (CurrentStep == null || IsRunning) return;
-
-            if (CurrentStep.Name == "EXPORT")
-            {
-                ExecuteExport();
-                return;
-            }
-
-            if (CurrentStep.IsHumanStep) return;
-
-            // 自動モードの場合は自動実行
-            if (IsAutoMode && !IsManualMode)
-            {
-                _ = ExecuteAutoModeAsync();
-                return;
-            }
-
-            // 手動モード
-            IsRunning = true;
-            CurrentStep.Status = "RUNNING";
-            StatusMessage = $"準備中: {CurrentStep.DisplayName}";
-
-            try
-            {
-                // StepLog作成
-                var inputs = GatherInputs(CurrentStep);
-                var inputKeysJson = JsonSerializer.Serialize(inputs.Keys.ToList());
-                var stepLogId = _db.CreateAiStepLog(_runId, CurrentStep.Index, CurrentStep.Name, inputKeysJson, CurrentPrompt);
-                CurrentStep.StepLogId = stepLogId;
-                _db.UpdateAiStepLogStatus(stepLogId, "RUNNING");
-
-                StatusMessage = "手動モード: プロンプトをコピーしてAIに投入し、結果を貼り付けてください";
-                IsManualMode = true;
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"エラー: {ex.Message}";
-                CurrentStep.Status = "FAILED";
-            }
-            finally
-            {
-                IsRunning = false;
-            }
-        }
-
-        private void SubmitManualInput()
-        {
-            if (CurrentStep == null || string.IsNullOrWhiteSpace(ManualInput)) return;
-
-            var stepLogId = CurrentStep.StepLogId;
-            if (stepLogId == null)
-            {
-                StatusMessage = "StepLogが見つかりません。再実行してください。";
-                return;
-            }
-
-            try
-            {
-                var expectedSection = GetExpectedSection(CurrentStep.Name);
-                PoetryParseResult parseResult;
-
-                if (CurrentStep.Name == "POEM_REVISION_GEN")
-                {
-                    parseResult = _outputParser.ParseRevisions(ManualInput);
-                }
-                else
-                {
-                    parseResult = _outputParser.Parse(ManualInput, expectedSection);
-                }
-
-                if (!parseResult.Success)
-                {
-                    StatusMessage = $"パースエラー: {parseResult.ErrorMessage}";
-                    return;
-                }
-
-                var parsedJson = JsonSerializer.Serialize(parseResult.Data);
-                _db.UpdateAiStepLogResult(stepLogId.Value, ManualInput, parsedJson, "SUCCESS");
-                SaveAssets(CurrentStep, parseResult);
-
-                if (CurrentStep.Name == "POEM_ISSUE_GEN")
-                {
-                    SaveIssues(stepLogId.Value);
-                }
-
-                CurrentStep.Status = "SUCCESS";
-                StatusMessage = $"完了: {CurrentStep.DisplayName}";
-
-                ManualInput = string.Empty;
-                IsManualMode = false;
-                MoveToNextStep();
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"エラー: {ex.Message}";
-            }
         }
 
         private string GetExpectedSection(string stepName)
@@ -881,9 +821,14 @@ namespace LanguagePractice.ViewModels
                 PrepareStep(CurrentStep);
 
                 // 自動モードかつAIステップなら自動継続
-                if (IsAutoMode && !CurrentStep.IsHumanStep && CurrentStep.Name != "EXPORT")
+                bool isAutoMode = _settingsService.GetBoolean("AUTO_MODE", false);
+                if (isAutoMode && !CurrentStep.IsHumanStep && CurrentStep.Name != "EXPORT")
                 {
-                    _ = ExecuteAutoModeAsync();
+                    // 次のステップを自動実行
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        ExecuteCurrentStep();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
             else
