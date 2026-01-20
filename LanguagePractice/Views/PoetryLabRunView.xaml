@@ -1,0 +1,375 @@
+﻿<UserControl x:Class="LanguagePractice.Views.PoetryLabRunView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="900">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ヘッダー -->
+        <Border Grid.Row="0" Background="#2D2D30" Padding="20,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Foreground="White" FontSize="18" FontWeight="Bold">
+                        <Run Text="Run #"/>
+                        <Run Text="{Binding Run.Id}"/>
+                        <Run Text=" - "/>
+                        <Run Text="{Binding Project.Title}"/>
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding Run.RouteName}" Foreground="#AAAAAA" FontSize="12"/>
+                        <Border Background="#4CAF50" CornerRadius="3" Padding="6,2" Margin="10,0,0,0"
+                                Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="AUTO" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                        <Border Background="#FF9800" CornerRadius="3" Padding="6,2" Margin="10,0,0,0"
+                                Visibility="{Binding IsAutoMode, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                            <TextBlock Text="MANUAL" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="キャンセル" Command="{Binding CancelRunCommand}"
+                        Padding="15,8" Background="#D32F2F" Foreground="White" BorderThickness="0"/>
+            </Grid>
+        </Border>
+
+        <!-- メインコンテンツ -->
+        <Grid Grid.Row="1" Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左：ステップ一覧 -->
+            <Border Grid.Column="0" BorderBrush="#DDDDDD" BorderThickness="1" Margin="0,0,10,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#F5F5F5" Padding="15,10">
+                        <TextBlock Text="ステップ進行状況" FontWeight="Bold"/>
+                    </Border>
+
+                    <ListBox Grid.Row="1" ItemsSource="{Binding Steps}"
+                             SelectedItem="{Binding CurrentStep}"
+                             BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10,8" BorderBrush="#EEEEEE" BorderThickness="0,0,0,1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="25"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="{Binding StatusIcon}"
+                                                   FontSize="14" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="SUCCESS">
+                                                            <Setter Property="Foreground" Value="#4CAF50"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="FAILED">
+                                                            <Setter Property="Foreground" Value="#D32F2F"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="RUNNING">
+                                                            <Setter Property="Foreground" Value="#FF9800"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="WAITING">
+                                                            <Setter Property="Foreground" Value="#2196F3"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock>
+                                                <Run Text="{Binding Index}"/>
+                                                <Run Text=". "/>
+                                                <Run Text="{Binding DisplayName}"/>
+                                            </TextBlock>
+                                            <TextBlock FontSize="10" Foreground="#888888">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value=""/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHumanStep}" Value="True">
+                                                                <Setter Property="Text" Value="👤 人間介入"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Column="2" Text="{Binding Status}"
+                                                   FontSize="10" Foreground="#888888" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- 右：現在のステップ詳細 -->
+            <Border Grid.Column="1" BorderBrush="#DDDDDD" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#F5F5F5" Padding="15,10">
+                        <TextBlock FontWeight="Bold">
+                            <Run Text="現在のステップ: "/>
+                            <Run Text="{Binding CurrentStep.DisplayName}"/>
+                        </TextBlock>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="15">
+
+                            <!-- AIステップ：プロンプト表示 -->
+                            <StackPanel Visibility="{Binding IsAiStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+
+                                <!-- 自動/手動モード表示 -->
+                                <Border Background="#E8F5E9" Padding="10" Margin="0,0,0,15" CornerRadius="4"
+                                        Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🤖" FontSize="16" Margin="0,0,8,0"/>
+                                        <TextBlock Text="自動モード ON: 「自動実行」をクリックするとAIへの投入・応答取得を自動で行います"
+                                                   Foreground="#2E7D32" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#FFF3E0" Padding="10" Margin="0,0,0,15" CornerRadius="4"
+                                        Visibility="{Binding IsAutoMode, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="✋" FontSize="16" Margin="0,0,8,0"/>
+                                        <TextBlock Text="手動モード: プロンプトをコピーしてAIに投入し、結果を貼り付けてください"
+                                                   Foreground="#E65100" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- プロンプト -->
+                                <TextBlock Text="プロンプト:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <Border Background="#F8F8F8" BorderBrush="#DDDDDD" BorderThickness="1" Padding="10" MaxHeight="200">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <TextBox Text="{Binding CurrentPrompt, Mode=OneWay}"
+                                                 IsReadOnly="True" TextWrapping="Wrap"
+                                                 BorderThickness="0" Background="Transparent"
+                                                 FontFamily="Consolas, MS Gothic" FontSize="12"/>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="📋 プロンプトをコピー" Command="{Binding CopyPromptCommand}"
+                                            Padding="10,5"/>
+                                </StackPanel>
+
+                                <!-- 実行ボタン（手動モードでない場合） -->
+                                <StackPanel Visibility="{Binding IsManualMode, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue=Visible}"
+                                            Margin="0,20,0,0">
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- 自動モード用ボタン -->
+                                        <Button Content="▶ 自動実行" Command="{Binding ExecuteAutoCommand}"
+                                                Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Padding="20,10" Margin="0,0,10,0"
+                                                Background="#4CAF50" Foreground="White" BorderThickness="0" FontWeight="Bold"
+                                                IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolConverter}}"/>
+
+                                        <!-- 手動モードへ切り替え -->
+                                        <Button Content="手動モードへ" Command="{Binding SwitchToManualCommand}"
+                                                Visibility="{Binding IsAutoMode, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Padding="15,10"/>
+
+                                        <!-- 手動モード用ボタン（AUTO_MODE=OFF時） -->
+                                        <Button Content="▶ 実行（手動入力へ）" Command="{Binding ExecuteStepCommand}"
+                                                Visibility="{Binding IsAutoMode, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                                Padding="20,10"
+                                                Background="#0078D4" Foreground="White" BorderThickness="0"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- 手動入力モード -->
+                                <StackPanel Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
+                                            Margin="0,20,0,0">
+                                    <Border Background="#FFF3E0" Padding="10" Margin="0,0,0,10">
+                                        <TextBlock Text="⚠ 手動モード: AIの出力を下記に貼り付けてください" Foreground="#E65100" FontWeight="SemiBold"/>
+                                    </Border>
+
+                                    <TextBlock Text="AI出力を貼り付け:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                    <TextBox Text="{Binding ManualInput, UpdateSourceTrigger=PropertyChanged}"
+                                             AcceptsReturn="True" TextWrapping="Wrap"
+                                             Height="200" Padding="10"
+                                             FontFamily="Consolas, MS Gothic" FontSize="12"
+                                             VerticalScrollBarVisibility="Auto"
+                                             BorderBrush="#DDDDDD"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button Content="✓ 解析して続行" Command="{Binding SubmitManualInputCommand}"
+                                                Padding="15,8" Background="#4CAF50" Foreground="White" BorderThickness="0"/>
+                                        <Button Content="↻ 再試行" Command="{Binding RetryStepCommand}"
+                                                Padding="15,8" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Core採択ステップ -->
+                            <StackPanel Visibility="{Binding IsCoreAdoptStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                <Border Background="#E3F2FD" Padding="10" Margin="0,0,0,15" CornerRadius="4">
+                                    <TextBlock Text="👤 人間介入ステップ: 核の候補から1つを選択（または自分で記述）してください"
+                                               Foreground="#1565C0"/>
+                                </Border>
+
+                                <TextBlock Text="核の候補（AIが抽出）:" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                                <ItemsControl ItemsSource="{Binding CoreCandidates}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="15" Margin="0,0,0,10"
+                                                    Background="{Binding IsSelected, Converter={StaticResource BoolToBackgroundConverter}}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <RadioButton Grid.Column="0" GroupName="CoreCandidates"
+                                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                 VerticalAlignment="Top" Margin="0,3,10,0"/>
+
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock FontWeight="SemiBold" FontSize="14">
+                                                            <Run Text="候補 "/>
+                                                            <Run Text="{Binding Index}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Margin="0,8,0,0"><Run Text="主題: " FontWeight="SemiBold"/><Run Text="{Binding Subject}"/></TextBlock>
+                                                        <TextBlock Margin="0,4,0,0"><Run Text="中心感情: " FontWeight="SemiBold"/><Run Text="{Binding Emotion}"/></TextBlock>
+                                                        <TextBlock Margin="0,4,0,0"><Run Text="問い/変化: " FontWeight="SemiBold"/><Run Text="{Binding Question}"/></TextBlock>
+                                                        <Border Background="#F5F5F5" Padding="8" Margin="0,8,0,0" CornerRadius="3">
+                                                            <TextBlock FontStyle="Italic" Foreground="#666666">
+                                                                <Run Text="→ "/>
+                                                                <Run Text="{Binding Oneline}"/>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- 自分で書く -->
+                                <Border BorderBrush="#0078D4" BorderThickness="2" Padding="15" Margin="0,10,0,0"
+                                        Background="{Binding UseCustomCore, Converter={StaticResource BoolToBackgroundConverter}}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <RadioButton Grid.Column="0" GroupName="CoreCandidates"
+                                                     IsChecked="{Binding UseCustomCore}"
+                                                     VerticalAlignment="Top" Margin="0,3,10,0"/>
+
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="✍ 自分で書く（修正/新規）" FontWeight="SemiBold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,10"/>
+                                            <TextBlock Text="主題:" FontWeight="SemiBold" Margin="0,5,0,2"/>
+                                            <TextBox Text="{Binding CustomCoreSubject, UpdateSourceTrigger=PropertyChanged}" Padding="8,6"/>
+                                            <TextBlock Text="中心感情:" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                            <TextBox Text="{Binding CustomCoreEmotion, UpdateSourceTrigger=PropertyChanged}" Padding="8,6"/>
+                                            <TextBlock Text="問い/変化:" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                            <TextBox Text="{Binding CustomCoreQuestion, UpdateSourceTrigger=PropertyChanged}" Padding="8,6"/>
+                                            <TextBlock Text="核の一文:" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                            <TextBox Text="{Binding CustomCoreOneline, UpdateSourceTrigger=PropertyChanged}" Padding="8,6"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock Text="※ 核が確定するまで次のステップに進めません"
+                                           Foreground="#888888" FontSize="11" Margin="0,15,0,0"/>
+
+                                <Button Content="✓ この核で確定 →" Command="{Binding AdoptCoreCommand}"
+                                        Padding="20,10" Margin="0,10,0,0"
+                                        HorizontalAlignment="Left"
+                                        Background="#4CAF50" Foreground="White" BorderThickness="0" FontWeight="Bold"/>
+                            </StackPanel>
+
+                            <!-- Winner選択ステップ -->
+                            <StackPanel Visibility="{Binding IsWinnerSelectStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                <Border Background="#E3F2FD" Padding="10" Margin="0,0,0,15" CornerRadius="4">
+                                    <TextBlock Text="👤 人間介入ステップ: 改稿案を比較してWinnerを選択してください"
+                                               Foreground="#1565C0"/>
+                                </Border>
+
+                                <TextBlock Text="改稿案が生成されました。比較画面でWinnerを選択してください。" Margin="0,0,0,15"/>
+
+                                <Button Content="▶ 比較画面へ →" Command="{Binding ProceedToCompareCommand}"
+                                        Padding="20,10"
+                                        HorizontalAlignment="Left"
+                                        Background="#0078D4" Foreground="White" BorderThickness="0" FontWeight="Bold"/>
+                            </StackPanel>
+
+                            <!-- Exportステップ -->
+                            <StackPanel Visibility="{Binding IsExportStep, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                <Border Background="#E8F5E9" Padding="10" Margin="0,0,0,15" CornerRadius="4">
+                                    <TextBlock Text="✓ 全ステップ完了！エクスポートしてRunを終了できます"
+                                               Foreground="#2E7D32"/>
+                                </Border>
+
+                                <Button Content="📄 エクスポート実行" Command="{Binding ExecuteStepCommand}"
+                                        Padding="20,10"
+                                        HorizontalAlignment="Left"
+                                        Background="#7B1FA2" Foreground="White" BorderThickness="0" FontWeight="Bold"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- フッター -->
+        <Border Grid.Row="2" Background="#F5F5F5" Padding="20,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="← 戻る" Command="{Binding BackCommand}"
+                        Padding="15,8"/>
+
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
+                           VerticalAlignment="Center" Margin="20,0"
+                           TextWrapping="Wrap"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="⏳ 処理中..." VerticalAlignment="Center" Foreground="#FF9800" FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -19,7 +19,8 @@ namespace LanguagePractice.ViewModels
         public ICommand ShowRoutesCommand { get; }
         public ICommand ShowPracticeCommand { get; }
         public ICommand ShowCompareCommand { get; }
-        public ICommand ShowExperimentCommand { get; } // 追加
+        public ICommand ShowExperimentCommand { get; }
+        public ICommand ShowPoetryLabCommand { get; }  // 追加
 
         public MainViewModel()
         {
@@ -32,9 +33,10 @@ namespace LanguagePractice.ViewModels
             ShowRoutesCommand = new RelayCommand(() => CurrentView = new RouteSelectionViewModel(this));
             ShowPracticeCommand = new RelayCommand(() => CurrentView = new PracticeSessionViewModel(this));
             ShowCompareCommand = new RelayCommand(() => CurrentView = new CompareViewModel());
-
-            // Experiment追加
             ShowExperimentCommand = new RelayCommand(() => CurrentView = new ExperimentViewModel());
+            
+            // PoetryLab追加
+            ShowPoetryLabCommand = new RelayCommand(() => CurrentView = new PoetryLabHomeViewModel(this));
         }
     }
 }

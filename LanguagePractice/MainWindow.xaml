@@ -31,9 +31,22 @@
         <DataTemplate DataType="{x:Type viewmodels:CompareViewModel}">
             <views:CompareView />
         </DataTemplate>
-        <!-- Experiment -->
         <DataTemplate DataType="{x:Type viewmodels:ExperimentViewModel}">
             <views:ExperimentView />
+        </DataTemplate>
+
+        <!-- PoetryLab DataTemplates -->
+        <DataTemplate DataType="{x:Type viewmodels:PoetryLabHomeViewModel}">
+            <views:PoetryLabHomeView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:PoetryLabProjectViewModel}">
+            <views:PoetryLabProjectView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:PoetryLabRunViewModel}">
+            <views:PoetryLabRunView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:PoetryLabCompareViewModel}">
+            <views:PoetryLabCompareView />
         </DataTemplate>
     </Window.Resources>
 
@@ -45,7 +58,7 @@
 
         <Border Grid.Column="0" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,0,1,0">
             <StackPanel Margin="10">
-                <TextBlock Text="Language&#x0a;Practice" FontSize="20" FontWeight="Bold" 
+                <TextBlock Text="Language&#x0a;Practice" FontSize="20" FontWeight="Bold"
                            TextAlignment="Center" Margin="0,10,0,20" Foreground="#333"/>
 
                 <Button Content="作業台 (Workbench)" Height="35" Margin="0,2" Command="{Binding ShowWorkbenchCommand}"/>
@@ -54,6 +67,13 @@
                 <Button Content="実験 (Experiment)" Height="35" Margin="0,2" Command="{Binding ShowExperimentCommand}"/>
                 <Button Content="ライブラリ (Library)" Height="35" Margin="0,2" Command="{Binding ShowLibraryCommand}"/>
                 <Button Content="比較 (Compare)" Height="35" Margin="0,2" Command="{Binding ShowCompareCommand}"/>
+
+                <Separator Margin="0,20"/>
+
+                <!-- PoetryLab ボタン -->
+                <Button Content="🎭 PoetryLab" Height="40" Margin="0,2"
+                        Command="{Binding ShowPoetryLabCommand}"
+                        Background="#7B1FA2" Foreground="White" FontWeight="Bold" FontSize="14"/>
 
                 <Separator Margin="0,20"/>
 
