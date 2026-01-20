@@ -1,0 +1,242 @@
+﻿<UserControl x:Class="LanguagePractice.Views.WorkbenchView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:LanguagePractice.Views"
+             xmlns:helpers="clr-namespace:LanguagePractice.Helpers"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="900">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <ScrollViewer Grid.Column="0" Margin="0,0,10,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="ワークベンチ (作業台)" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                <GroupBox Header="1. 操作選択" Margin="0,0,0,6" Padding="5">
+                    <ComboBox ItemsSource="{Binding OperationList}"
+                              SelectedItem="{Binding SelectedOperation}"
+                              Padding="5"/>
+                </GroupBox>
+
+                <Border Background="#FFFDE7" BorderBrush="#FFE082" BorderThickness="1"
+                        CornerRadius="4" Padding="8" Margin="0,0,0,10">
+                    <TextBlock Text="{Binding OperationDescription}"
+                               Foreground="#6D4C41"
+                               TextWrapping="Wrap"/>
+                </Border>
+
+                <!-- TEXT_GEN -->
+                <StackPanel Visibility="{Binding IsTextGenVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="文章生成 (TEXT_GEN)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="長さ:" Margin="0,0,0,2"/>
+                            <ComboBox ItemsSource="{Binding LengthList}" SelectedItem="{Binding SelectedLength}" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="お題:" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="50"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding TopicInput}" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: 冬の朝の静寂とコーヒー"/>
+                                <Button Grid.Column="1" Content="選択" Command="{Binding PickTopicCommand}" Margin="5,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="書き手 (Writer):" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="50"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding WriterInput}" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: 太宰治 / 宮沢賢治 / 指定なし"/>
+                                <Button Grid.Column="1" Content="選択" Command="{Binding PickWriterCommand}" Margin="5,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- TOPIC_GEN -->
+                <StackPanel Visibility="{Binding IsTopicGenVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="お題生成 (TOPIC_GEN)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="画像URL (任意):" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding ImageUrlInput}" Margin="0,0,0,10" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: https://example.com/image.jpg（空でもOK）"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- PERSONA_GEN -->
+                <StackPanel Visibility="{Binding IsPersonaGenVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="人物生成 (PERSONA_GEN)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="ジャンル・時代:" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding GenreInput}" Margin="0,0,0,10" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: 近代日本文学 / 英詩 / SF作家 など"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- OBSERVE_IMAGE -->
+                <StackPanel Visibility="{Binding IsObserveImageVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="画像観察 (OBSERVE_IMAGE)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="画像URL (必須):" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding ImageUrlInput}" Margin="0,0,0,10" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: https://example.com/image.jpg"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- STUDY_CARD -->
+                <StackPanel Visibility="{Binding IsStudyCardVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="学習カード化 (STUDY_CARD)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="対象本文:" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Button Grid.Row="0" Content="ライブラリから引用" Command="{Binding PickSourceTextCommand}" HorizontalAlignment="Right" Margin="0,0,0,5"/>
+                                <TextBox Grid.Row="1" Text="{Binding SourceTextInput}" Height="80"
+                                         TextWrapping="Wrap" AcceptsReturn="True" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: ここに分析したい本文を貼り付け（または右上のボタンで引用）"/>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- CORE_EXTRACT -->
+                <StackPanel Visibility="{Binding IsCoreExtractVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="核の抽出 (CORE_EXTRACT)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="対象本文:" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Button Grid.Row="0" Content="ライブラリから引用" Command="{Binding PickSourceTextCommand}" HorizontalAlignment="Right" Margin="0,0,0,5"/>
+                                <TextBox Grid.Row="1" Text="{Binding SourceTextInput}" Height="80"
+                                         TextWrapping="Wrap" AcceptsReturn="True" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: ここに核を抽出したい本文を貼り付け"/>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- GIKO -->
+                <StackPanel Visibility="{Binding IsGikoVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="擬古文変換 (GIKO)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="元の現代文:" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Button Grid.Row="0" Content="ライブラリから引用" Command="{Binding PickSourceTextCommand}" HorizontalAlignment="Right" Margin="0,0,0,5"/>
+                                <TextBox Grid.Row="1" Text="{Binding SourceTextInput}" Height="80"
+                                         TextWrapping="Wrap" AcceptsReturn="True" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: 変換したい現代文を貼り付け"/>
+                            </Grid>
+
+                            <TextBlock Text="文調ラベル:" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding ToneLabel}" Margin="0,0,0,5" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: 平安調 / 漢文訓読調 / 江戸戯作風"/>
+
+                            <TextBlock Text="変換ルール:" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding ToneRuleText}" Height="40" TextWrapping="Wrap" Margin="0,0,0,10" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: 句読点少なめ、歴史的仮名遣い、係り結びを時々使う"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- REVISION_FULL -->
+                <StackPanel Visibility="{Binding IsRevisionFullVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="全文推敲 (REVISION)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="元原稿:" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Button Grid.Row="0" Content="ライブラリから引用" Command="{Binding PickSourceTextCommand}" HorizontalAlignment="Right" Margin="0,0,0,5"/>
+                                <TextBox Grid.Row="1" Text="{Binding SourceTextInput}" Height="60"
+                                         TextWrapping="Wrap" AcceptsReturn="True" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: 推敲したい元原稿を貼り付け"/>
+                            </Grid>
+
+                            <TextBlock Text="核 - テーマ:" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding CoreTheme}" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: 失われた時間への執着"/>
+
+                            <TextBlock Text="核 - 感情:" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding CoreEmotion}" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: 静かな諦め、微かな希望"/>
+
+                            <TextBlock Text="核 - 一文:" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding CoreSentence}" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: この一杯が、今日を始める儀式だ。"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- VERIFY -->
+                <StackPanel Visibility="{Binding IsPersonaVerifyVisible, Converter={StaticResource BoolToVis}}">
+                    <GroupBox Header="検証支援 (VERIFY)" Margin="0,0,0,10" Padding="5">
+                        <StackPanel>
+                            <TextBlock Text="対象名:" Margin="0,0,0,2"/>
+                            <Grid Margin="0,0,0,5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="50"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding TargetPersonaName}" Padding="3"
+                                         helpers:WatermarkService.Watermark="例: 夏目漱石"/>
+                                <Button Grid.Column="1" Content="選択" Command="{Binding PickTargetPersonaCommand}" Margin="5,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="現在の記述 (Bio):" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding TargetPersonaBio}" Height="40" TextWrapping="Wrap" Margin="0,0,0,5" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: ここに現在のBio（検証したい記述）"/>
+
+                            <TextBlock Text="根拠 (Evidence):" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding Evidence1}" Height="40" TextWrapping="Wrap" Margin="0,0,0,5" Padding="3"
+                                     helpers:WatermarkService.Watermark="例: 書籍の該当箇所/メモ/引用文（URLは貼らない方針ならテキストだけ）"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- Common Reader -->
+                <GroupBox Header="読者像 (任意)" Margin="0,0,0,10" Padding="5">
+                    <StackPanel>
+                        <TextBox Text="{Binding ReaderInput}" Height="40" TextWrapping="Wrap" AcceptsReturn="True" Padding="3"
+                                 helpers:WatermarkService.Watermark="例: 夜明け前に目覚めた人 / 疲れた社会人 など（空でもOK）"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <Button Content="プロンプト生成"
+                        Command="{Binding GeneratePromptCommand}"
+                        Height="45" FontWeight="Bold" FontSize="14" Margin="0,10,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Column="1" BorderBrush="#DDD" BorderThickness="1" Padding="10" Background="White">
+            <views:RunPanelView DataContext="{Binding RunPanelVM}"/>
+        </Border>
+    </Grid>
+</UserControl>

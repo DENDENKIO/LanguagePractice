@@ -1,0 +1,29 @@
+﻿<Window x:Class="LanguagePractice.Views.BrowserWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        mc:Ignorable="d"
+        Title="AI Auto Runner" Height="800" Width="1000" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Control Bar -->
+        <Border Grid.Row="0" Background="#F0F0F0" Padding="10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="ステータス: " VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusText" Text="待機中" FontWeight="Bold" Margin="5,0,20,0" VerticalAlignment="Center"/>
+
+                <Button Content="手動で貼り付け実行" Click="ManualInject_Click" Width="120" Margin="0,0,10,0"/>
+                <Button Content="結果をコピーして閉じる" Click="CopyAndClose_Click" Width="150" Background="#4CAF50" Foreground="White"/>
+            </StackPanel>
+        </Border>
+
+        <!-- WebView2 Browser -->
+        <wv2:WebView2 x:Name="webView" Grid.Row="1" Source="about:blank"/>
+    </Grid>
+</Window>

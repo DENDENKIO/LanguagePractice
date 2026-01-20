@@ -1,0 +1,124 @@
+﻿<UserControl x:Class="LanguagePractice.Views.LibraryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="1000">
+
+    <UserControl.Resources>
+        <Style TargetType="DataGridRow">
+            <EventSetter Event="MouseDoubleClick" Handler="DataGridRow_MouseDoubleClick"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header: Search & Actions -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Text="ライブラリ (Library)" FontSize="24" FontWeight="Bold" Margin="0,0,20,0" VerticalAlignment="Center"/>
+
+            <!-- Search Box -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBox Text="{Binding SearchKeyword, UpdateSourceTrigger=PropertyChanged}"
+                         Width="300" Height="26" Padding="3" VerticalContentAlignment="Center"
+                         ToolTip="タイトル、本文、タグなどで検索">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                    </TextBox.InputBindings>
+                </TextBox>
+                <Button Content="検索" Command="{Binding SearchCommand}" Width="60" Height="26" Margin="5,0,0,0"/>
+                <Button Content="クリア" Command="{Binding RefreshCommand}" Width="60" Height="26" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <!-- Actions -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Content="選択削除"
+                        Click="DeleteSelected_Click"
+                        Background="#FFEBEE" Foreground="#D32F2F" FontWeight="Bold"
+                        Width="100" Height="30" Margin="10,0,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Tabs -->
+        <TabControl x:Name="Tabs" Grid.Row="1">
+
+            <TabItem Header="作品 (Works)">
+                <DataGrid x:Name="WorksGrid" ItemsSource="{Binding Works}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                        <DataGridTextColumn Header="日付" Binding="{Binding CreatedAt}" Width="130"/>
+                        <DataGridTextColumn Header="種類" Binding="{Binding Kind}" Width="80"/>
+                        <DataGridTextColumn Header="タイトル" Binding="{Binding Title}" Width="180"/>
+                        <DataGridTextColumn Header="書き手" Binding="{Binding WriterName}" Width="80"/>
+                        <DataGridTextColumn Header="本文 (冒頭)" Binding="{Binding BodyText}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="学習カード (Study)">
+                <DataGrid x:Name="StudyGrid" ItemsSource="{Binding StudyCards}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                        <DataGridTextColumn Header="日付" Binding="{Binding CreatedAt}" Width="130"/>
+                        <DataGridTextColumn Header="着眼点" Binding="{Binding Focus}" Width="120"/>
+                        <DataGridTextColumn Header="レベル" Binding="{Binding Level}" Width="60"/>
+                        <DataGridTextColumn Header="タグ" Binding="{Binding Tags}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="人物 (Personas)">
+                <DataGrid x:Name="PersonasGrid" ItemsSource="{Binding Personas}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                        <DataGridTextColumn Header="状態" Binding="{Binding VerificationStatus}" Width="90"/>
+                        <DataGridTextColumn Header="名前" Binding="{Binding Name}" Width="120"/>
+                        <DataGridTextColumn Header="場所" Binding="{Binding Location}" Width="100"/>
+                        <DataGridTextColumn Header="経歴" Binding="{Binding Bio}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="お題 (Topics)">
+                <DataGrid x:Name="TopicsGrid" ItemsSource="{Binding Topics}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                        <DataGridTextColumn Header="お題" Binding="{Binding Title}" Width="250"/>
+                        <DataGridTextColumn Header="感情" Binding="{Binding Emotion}" Width="100"/>
+                        <DataGridTextColumn Header="場面" Binding="{Binding Scene}" Width="80"/>
+                        <DataGridTextColumn Header="固定条件" Binding="{Binding FixConditions}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="観察 (Observations)">
+                <DataGrid x:Name="ObservationsGrid" ItemsSource="{Binding Observations}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                        <DataGridTextColumn Header="モチーフ" Binding="{Binding Motif}" Width="150"/>
+                        <DataGridTextColumn Header="画像URL" Binding="{Binding ImageUrl}" Width="150"/>
+                        <DataGridTextColumn Header="視覚情報" Binding="{Binding VisualRaw}" Width="200"/>
+                        <DataGridTextColumn Header="比喩" Binding="{Binding MetaphorsRaw}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</UserControl>

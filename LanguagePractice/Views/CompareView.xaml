@@ -1,0 +1,87 @@
+﻿<UserControl x:Class="LanguagePractice.Views.CompareView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="比較 (Compare View)" FontSize="24" FontWeight="Bold" Margin="0,0,0,15"/>
+
+        <!-- Main Comparison Area -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Pane -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <GroupBox Header="作品A (左)" Margin="0,0,0,5">
+                    <ComboBox ItemsSource="{Binding AvailableWorks}" SelectedItem="{Binding LeftWork}" DisplayMemberPath="Title"/>
+                </GroupBox>
+                <TextBox Text="{Binding LeftWork.BodyText}" TextWrapping="Wrap" AcceptsReturn="True" 
+                         VerticalScrollBarVisibility="Auto" Grid.Row="1" Padding="10" FontSize="14" IsReadOnly="True"/>
+            </Grid>
+
+            <!-- Right Pane -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <GroupBox Header="作品B (右)" Margin="0,0,0,5">
+                    <ComboBox ItemsSource="{Binding AvailableWorks}" SelectedItem="{Binding RightWork}" DisplayMemberPath="Title"/>
+                </GroupBox>
+                <TextBox Text="{Binding RightWork.BodyText}" TextWrapping="Wrap" AcceptsReturn="True" 
+                         VerticalScrollBarVisibility="Auto" Grid.Row="1" Padding="10" FontSize="14" IsReadOnly="True"/>
+            </Grid>
+        </Grid>
+
+        <!-- Save Area -->
+        <Border Grid.Row="2" BorderBrush="#DDD" BorderThickness="1" Margin="0,10,0,0" Padding="10" Background="#FAFAFA">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="150"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,5">
+                    <TextBlock Text="比較タイトル:" VerticalAlignment="Center" Width="80"/>
+                    <TextBox Text="{Binding CompareTitle}" Width="300" Padding="3"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,5">
+                    <TextBlock Text="勝者 (Winner):" VerticalAlignment="Center" Width="80"/>
+                    <ComboBox ItemsSource="{Binding WinnerCandidates}" SelectedItem="{Binding SelectedWinner}" 
+                              DisplayMemberPath="Title" Width="300" Padding="3"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="考察メモ:" VerticalAlignment="Top" Width="80" Margin="0,3,0,0"/>
+                    <TextBox Text="{Binding CompareNote}" Width="500" Height="60" TextWrapping="Wrap" AcceptsReturn="True" Padding="3"/>
+                </StackPanel>
+
+                <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Content="比較結果を保存" 
+                        Command="{Binding SaveCommand}" 
+                        Background="#2196F3" Foreground="White" FontWeight="Bold" Margin="10,0,0,0"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
