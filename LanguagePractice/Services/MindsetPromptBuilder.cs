@@ -10,10 +10,11 @@ namespace LanguagePractice.Services
     /// <summary>
     /// MindsetLab用AIプロンプトビルダー
     /// 仕様書2 第4.3章 / 第5.2章準拠
-    /// BrowserWindow自動取得対応（DONE_SENTINEL使用）
     /// </summary>
     public class MindsetPromptBuilder
     {
+        private static readonly Random _random = new Random();
+
         /// <summary>
         /// MS_PLAN_GEN: 今日の重点ミッション生成
         /// </summary>
@@ -29,7 +30,7 @@ namespace LanguagePractice.Services
             sb.AppendLine("3. 観察を対話として扱う（10分観察/余白記述/質問）");
             sb.AppendLine("4. 経験を錬金術で変換（3層記録/感情変換/失敗素材化）");
             sb.AppendLine("5. メタ認知（今なにしてる？ログ/友人視点/10点採点）");
-            sb.AppendLine("6. ルーティンを儀式化（聖域/開始儀式/終了儀式/計画）");
+            sb.AppendLine("6. ルーティンを儀式化（聖域定義/時間ブロック/計画）");
             sb.AppendLine();
 
             if (consecutiveDays.HasValue && consecutiveDays > 0)
@@ -44,16 +45,31 @@ namespace LanguagePractice.Services
             }
 
             sb.AppendLine();
-            sb.AppendLine("【出力形式】必ず以下の形式で出力してください。マーカーは正確に記述してください。");
+            sb.AppendLine("【重要な指示】");
+            sb.AppendLine("1. FOCUS_MINDSETSは毎回異なる2〜3個をランダムに選んでください（1〜6から）");
+            sb.AppendLine("2. 前回と同じ組み合わせは避けてください");
+            sb.AppendLine("3. SCENEには「日常的で具体的なシーン」を設定してください（カフェ、電車、公園、スーパー、自宅リビング等）");
+            sb.AppendLine("4. ユーザーはPCの前にいることが多いため、想像でそのシーンに入り込んでトレーニングします");
+            sb.AppendLine();
+            sb.AppendLine("【出力形式】以下の形式を厳守してください。例文をそのまま出力しないこと。");
             sb.AppendLine();
             sb.AppendLine(LpConstants.MS_PLAN_BEGIN);
-            sb.AppendLine("FOCUS_MINDSETS: 2,3,5");
+            sb.AppendLine("FOCUS_MINDSETS: （1〜6から2〜3個をカンマ区切りで。例: 1,4,6）");
+            sb.AppendLine("SCENE: （今日の訓練シーン。日常的な場所と状況を具体的に描写。50〜100字程度）");
             sb.AppendLine("TASKS:");
-            sb.AppendLine("- タスク1の具体的な内容");
-            sb.AppendLine("- タスク2の具体的な内容");
-            sb.AppendLine("- タスク3の具体的な内容");
-            sb.AppendLine("START_RITUAL: 開始儀式の提案（例：深呼吸3回→目を閉じて今日の目標を唱える）");
-            sb.AppendLine("END_RITUAL: 終了儀式の提案（例：今日学んだこと3つを書き出す→水を一杯飲む）");
+            sb.AppendLine("- （シーンに基づいた具体的なタスク1）");
+            sb.AppendLine("- （シーンに基づいた具体的なタスク2）");
+            sb.AppendLine("- （シーンに基づいた具体的なタスク3）");
+            sb.AppendLine(LpConstants.MS_PLAN_END);
+            sb.AppendLine();
+            sb.AppendLine("【出力例】参考にして、異なる内容を生成すること");
+            sb.AppendLine(LpConstants.MS_PLAN_BEGIN);
+            sb.AppendLine("FOCUS_MINDSETS: 1,3,4");
+            sb.AppendLine("SCENE: 平日の朝8時、最寄り駅のホームで電車を待っている。周囲にはスーツ姿の会社員、制服の学生、買い物袋を持った高齢者がいる。電車の到着アナウンスが響く。");
+            sb.AppendLine("TASKS:");
+            sb.AppendLine("- ホームで待つ人々の中から1人を選び、その人の「今日の物語」に3つのタイトルをつける");
+            sb.AppendLine("- 電車が到着する瞬間を「線路の視点」「風の視点」「時計の視点」で描写する");
+            sb.AppendLine("- 自分が感じた「朝の通勤の空気感」を事実/感情/普遍の3層で記録する");
             sb.AppendLine(LpConstants.MS_PLAN_END);
             sb.AppendLine();
             sb.AppendLine($"出力の最後に必ず {LpConstants.DONE_SENTINEL} を付けてください。");
@@ -79,8 +95,17 @@ namespace LanguagePractice.Services
 
             if (!string.IsNullOrEmpty(day.FocusMindsets))
             {
-                sb.AppendLine($"【重点マインドセット】{day.FocusMindsets}");
+                var mindsetNames = day.GetFocusMindsetList()
+                    .Select(id => $"{id}. {MindsetDefinitions.GetMindsetName(id)}")
+                    .ToList();
+                sb.AppendLine($"【重点マインドセット】{string.Join(" / ", mindsetNames)}");
             }
+
+            if (!string.IsNullOrEmpty(day.Scene))
+            {
+                sb.AppendLine($"【今日のシーン】{day.Scene}");
+            }
+
             sb.AppendLine();
             sb.AppendLine("【提出された記録】");
 
@@ -103,25 +128,25 @@ namespace LanguagePractice.Services
             sb.AppendLine("- 各マインドセット：具体性、独自性、深掘り度、核への接続可能性");
             sb.AppendLine("- 総合点：100点満点");
             sb.AppendLine();
-            sb.AppendLine("【出力形式】必ず以下の形式で出力してください。マーカーは正確に記述してください。");
+            sb.AppendLine("【出力形式】以下の形式を厳守してください。");
             sb.AppendLine();
             sb.AppendLine(LpConstants.MS_REVIEW_BEGIN);
-            sb.AppendLine("TOTAL_SCORE: 75");
+            sb.AppendLine("TOTAL_SCORE: （0〜100の数値）");
             sb.AppendLine("SUBSCORES:");
-            sb.AppendLine("  A: 80");
-            sb.AppendLine("  B: 70");
-            sb.AppendLine("  C: 75");
-            sb.AppendLine("  D: 70");
-            sb.AppendLine("  E: 80");
-            sb.AppendLine("  F: 75");
+            sb.AppendLine("  A: （世界を素材として見る の点数）");
+            sb.AppendLine("  B: （比喩で翻訳 の点数）");
+            sb.AppendLine("  C: （観察を対話として扱う の点数）");
+            sb.AppendLine("  D: （経験を錬金術で変換 の点数）");
+            sb.AppendLine("  E: （メタ認知 の点数）");
+            sb.AppendLine("  F: （ルーティンを儀式化 の点数）");
             sb.AppendLine("STRENGTHS:");
-            sb.AppendLine("- 強み1の具体的な内容");
-            sb.AppendLine("- 強み2の具体的な内容");
+            sb.AppendLine("- （強み1）");
+            sb.AppendLine("- （強み2）");
             sb.AppendLine("WEAKNESSES:");
-            sb.AppendLine("- 弱み1の具体的な内容");
-            sb.AppendLine("- 弱み2の具体的な内容");
-            sb.AppendLine("NEXT_DAY_PLAN: 明日の課題・意図的練習の提案");
-            sb.AppendLine("CORE_LINK: 今日の記録から抽出した「核」候補（主題/感情/問い）");
+            sb.AppendLine("- （改善点1）");
+            sb.AppendLine("- （改善点2）");
+            sb.AppendLine("NEXT_DAY_PLAN: （明日の具体的な課題提案）");
+            sb.AppendLine("CORE_LINK: （今日の記録から抽出した「核」候補：主題/感情/問い）");
             sb.AppendLine(LpConstants.MS_REVIEW_END);
             sb.AppendLine();
             sb.AppendLine($"出力の最後に必ず {LpConstants.DONE_SENTINEL} を付けてください。");

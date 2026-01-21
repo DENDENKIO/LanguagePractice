@@ -9,7 +9,6 @@ namespace LanguagePractice.Services
 {
     /// <summary>
     /// MindsetLab用AIアウトプットパーサー
-    /// 仕様書2 第5.2章準拠
     /// </summary>
     public class MindsetOutputParser
     {
@@ -49,12 +48,10 @@ namespace LanguagePractice.Services
         {
             var result = new MsPlanResult();
 
-            // 全体をデバッグ出力
             System.Diagnostics.Debug.WriteLine($"=== ParsePlanGenContent ===");
             System.Diagnostics.Debug.WriteLine(content);
-            System.Diagnostics.Debug.WriteLine($"=== END ===");
 
-            // FOCUS_MINDSETS: 数字をカンマ区切りで
+            // FOCUS_MINDSETS
             var focusMatch = Regex.Match(content, @"FOCUS_MINDSETS:\s*([0-9,\s]+)", RegexOptions.IgnoreCase);
             if (focusMatch.Success)
             {
@@ -67,9 +64,34 @@ namespace LanguagePractice.Services
                     }
                 }
             }
-            System.Diagnostics.Debug.WriteLine($"FocusMindsets: {string.Join(",", result.FocusMindsets)}");
 
-            // TASKS: - で始まる行を収集
+            // SCENE（新規追加）
+            var sceneMatch = Regex.Match(content, @"SCENE:\s*(.+?)(?=\n\s*(?:TASKS|FOCUS_|$))", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (sceneMatch.Success)
+            {
+                result.Scene = CleanValue(sceneMatch.Groups[1].Value);
+            }
+            else
+            {
+                var sceneSimple = Regex.Match(content, @"SCENE:\s*(.+)", RegexOptions.IgnoreCase);
+                if (sceneSimple.Success)
+                {
+                    var sceneLine = sceneSimple.Groups[1].Value;
+                    // 次のキーワードまでを取得
+                    var nextKeyIndex = FindNextKeyIndex(sceneLine);
+                    if (nextKeyIndex > 0)
+                    {
+                        result.Scene = CleanValue(sceneLine.Substring(0, nextKeyIndex));
+                    }
+                    else
+                    {
+                        result.Scene = CleanValue(sceneLine.Split('\n')[0]);
+                    }
+                }
+            }
+            System.Diagnostics.Debug.WriteLine($"Scene: {result.Scene}");
+
+            // TASKS
             var tasksMatch = Regex.Match(content, @"TASKS:\s*\n?((?:[-•＊・]\s*.+[\r\n]*)+)", RegexOptions.IgnoreCase | RegexOptions.Multiline);
             if (tasksMatch.Success)
             {
@@ -78,7 +100,14 @@ namespace LanguagePractice.Services
                 foreach (Match m in taskLines)
                 {
                     var task = m.Groups[1].Value.Trim();
-                    if (!string.IsNullOrEmpty(task) && !task.StartsWith("START_") && !task.StartsWith("END_"))
+                    // 不要な行を除外
+                    if (!string.IsNullOrEmpty(task) &&
+                        !task.StartsWith("START_") &&
+                        !task.StartsWith("END_") &&
+                        !task.StartsWith("SCENE") &&
+                        !task.StartsWith("FOCUS") &&
+                        !task.Contains("---END") &&
+                        !task.Contains(LpConstants.DONE_SENTINEL))
                     {
                         result.Tasks.Add(task);
                     }
@@ -86,58 +115,47 @@ namespace LanguagePractice.Services
             }
             System.Diagnostics.Debug.WriteLine($"Tasks count: {result.Tasks.Count}");
 
-            // START_RITUAL: 1行または複数行
-            var startMatch = Regex.Match(content, @"START_RITUAL:\s*(.+?)(?=\n\s*(?:END_RITUAL|TASKS|FOCUS_|$))", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // START_RITUAL（互換性のため残すが空でも問題なし）
+            var startMatch = Regex.Match(content, @"START_RITUAL:\s*(.+?)(?=\n\s*(?:END_RITUAL|TASKS|FOCUS_|SCENE|$))", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (startMatch.Success)
             {
                 result.StartRitual = CleanValue(startMatch.Groups[1].Value);
             }
-            else
-            {
-                // シンプルな1行パターン
-                var startSimple = Regex.Match(content, @"START_RITUAL:\s*(.+)", RegexOptions.IgnoreCase);
-                if (startSimple.Success)
-                {
-                    result.StartRitual = CleanValue(startSimple.Groups[1].Value.Split('\n')[0]);
-                }
-            }
-            System.Diagnostics.Debug.WriteLine($"StartRitual: {result.StartRitual}");
 
-            // END_RITUAL: 1行または複数行
-            var endMatch = Regex.Match(content, @"END_RITUAL:\s*(.+?)(?=\n\s*(?:START_RITUAL|TASKS|FOCUS_|$))", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // END_RITUAL（互換性のため残すが空でも問題なし）
+            var endMatch = Regex.Match(content, @"END_RITUAL:\s*(.+?)(?=\n\s*(?:START_RITUAL|TASKS|FOCUS_|SCENE|$))", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (endMatch.Success)
             {
                 result.EndRitual = CleanValue(endMatch.Groups[1].Value);
             }
-            else
-            {
-                // シンプルな1行パターン
-                var endSimple = Regex.Match(content, @"END_RITUAL:\s*(.+)", RegexOptions.IgnoreCase);
-                if (endSimple.Success)
-                {
-                    result.EndRitual = CleanValue(endSimple.Groups[1].Value.Split('\n')[0]);
-                }
-            }
-            System.Diagnostics.Debug.WriteLine($"EndRitual: {result.EndRitual}");
 
             return result;
         }
 
-        /// <summary>
-        /// 値をクリーンアップ
-        /// </summary>
+        private int FindNextKeyIndex(string text)
+        {
+            var keywords = new[] { "TASKS:", "FOCUS_", "START_", "END_", "---" };
+            int minIndex = -1;
+            foreach (var kw in keywords)
+            {
+                int idx = text.IndexOf(kw, StringComparison.OrdinalIgnoreCase);
+                if (idx > 0 && (minIndex < 0 || idx < minIndex))
+                {
+                    minIndex = idx;
+                }
+            }
+            return minIndex;
+        }
+
         private string CleanValue(string value)
         {
             if (string.IsNullOrEmpty(value)) return string.Empty;
 
-            // 前後の空白、改行を除去
             value = value.Trim();
-
-            // 末尾のマーカーを除去
             value = Regex.Replace(value, @"---END.*$", "", RegexOptions.IgnoreCase).Trim();
-
-            // センチネルを除去
             value = value.Replace(LpConstants.DONE_SENTINEL, "").Trim();
+            // 改行を整理
+            value = Regex.Replace(value, @"\r?\n\s*\r?\n", "\n").Trim();
 
             return value;
         }
@@ -153,7 +171,6 @@ namespace LanguagePractice.Services
             {
                 string content = rawOutput;
 
-                // マーカーで囲まれた部分を抽出
                 var beginMatch = Regex.Match(rawOutput, Regex.Escape(LpConstants.MS_REVIEW_BEGIN));
                 var endMatch = Regex.Match(rawOutput, Regex.Escape(LpConstants.MS_REVIEW_END));
 
@@ -182,11 +199,10 @@ namespace LanguagePractice.Services
             var totalMatch = Regex.Match(content, @"TOTAL_SCORE:\s*(\d+)", RegexOptions.IgnoreCase);
             if (totalMatch.Success) result.TotalScore = int.Parse(totalMatch.Groups[1].Value);
 
-            // SUBSCORES (A: 80, B: 70, etc.)
+            // SUBSCORES
             var subscorePatterns = new[] { "A", "B", "C", "D", "E", "F" };
             foreach (var key in subscorePatterns)
             {
-                // "A: 80" または "A：80" のパターン
                 var scoreMatch = Regex.Match(content, $@"(?<![A-Z]){key}\s*[:：]\s*(\d+)", RegexOptions.IgnoreCase);
                 if (scoreMatch.Success)
                 {
@@ -259,25 +275,16 @@ namespace LanguagePractice.Services
             return result;
         }
 
-        /// <summary>
-        /// MsReviewResultをJSON文字列に変換
-        /// </summary>
         public string ToJson(MsReviewResult result)
         {
             return JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
         }
 
-        /// <summary>
-        /// MsPlanResultをJSON文字列に変換
-        /// </summary>
         public string ToJson(MsPlanResult result)
         {
             return JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
         }
 
-        /// <summary>
-        /// SubscoresをJSON文字列に変換
-        /// </summary>
         public string SubscoresToJson(Dictionary<string, int> subscores)
         {
             return JsonSerializer.Serialize(subscores);

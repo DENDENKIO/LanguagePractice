@@ -3,31 +3,24 @@ using LanguagePractice.Models;
 using LanguagePractice.Services;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Input;
 
 namespace LanguagePractice.ViewModels
 {
     /// <summary>
     /// MindsetLab ホーム画面 ViewModel
-    /// 仕様書2 第7.1章準拠
     /// </summary>
     public class MindsetLabHomeViewModel : ViewModelBase
     {
-        private readonly MindsetDatabaseService _db;
         private readonly MainViewModel _mainViewModel;
+        private readonly MindsetDatabaseService _db;
 
-        private ObservableCollection<MsDay> _recentDays = new();
-        public ObservableCollection<MsDay> RecentDays
+        private ObservableCollection<MsDayListItem> _recentDays = new();
+        public ObservableCollection<MsDayListItem> RecentDays
         {
             get => _recentDays;
             set { _recentDays = value; OnPropertyChanged(); }
-        }
-
-        private MsDay? _selectedDay;
-        public MsDay? SelectedDay
-        {
-            get => _selectedDay;
-            set { _selectedDay = value; OnPropertyChanged(); }
         }
 
         private int _consecutiveDays;
@@ -51,10 +44,18 @@ namespace LanguagePractice.ViewModels
             set { _hasTodaySession = value; OnPropertyChanged(); }
         }
 
+        private string _statusMessage = string.Empty;
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set { _statusMessage = value; OnPropertyChanged(); }
+        }
+
         // コマンド
         public ICommand StartTodayCommand { get; }
         public ICommand ContinueTodayCommand { get; }
         public ICommand OpenDayCommand { get; }
+        public ICommand ViewHistoryCommand { get; }
         public ICommand RefreshCommand { get; }
 
         public MindsetLabHomeViewModel(MainViewModel mainViewModel)
@@ -62,9 +63,13 @@ namespace LanguagePractice.ViewModels
             _mainViewModel = mainViewModel;
             _db = new MindsetDatabaseService();
 
+            // DB初期化
+            MindsetDatabaseService.InitializeDatabase();
+
             StartTodayCommand = new RelayCommand(StartToday);
             ContinueTodayCommand = new RelayCommand(ContinueToday);
-            OpenDayCommand = new RelayCommand<MsDay>(OpenDay);
+            OpenDayCommand = new RelayCommand<int>(OpenDay);
+            ViewHistoryCommand = new RelayCommand(ViewHistory);
             RefreshCommand = new RelayCommand(LoadData);
 
             LoadData();
@@ -72,74 +77,98 @@ namespace LanguagePractice.ViewModels
 
         private void LoadData()
         {
-            // 直近の履歴
-            var days = _db.GetRecentDays(30);
-            RecentDays = new ObservableCollection<MsDay>(days);
-
             // 継続日数
             ConsecutiveDays = _db.GetConsecutiveDays();
 
-            // 今日のステータス
-            var today = DateTime.Now.ToString("yyyy-MM-dd");
+            // 今日のセッション確認
+            var today = DateTime.Today.ToString("yyyy-MM-dd");
             var todayDay = _db.GetDayByDate(today);
+            HasTodaySession = todayDay != null;
 
-            if (todayDay != null)
+            if (HasTodaySession && todayDay != null)
             {
-                HasTodaySession = true;
-                var entries = _db.GetEntriesByDay(todayDay.Id);
                 var review = _db.GetReviewByDay(todayDay.Id);
-
                 if (review != null)
                 {
-                    TodayStatus = $"✅ 完了（スコア: {review.TotalScore}点）";
-                }
-                else if (entries.Count > 0)
-                {
-                    TodayStatus = $"📝 進行中（{entries.Count}件入力済み）";
+                    TodayStatus = $"✅ 完了（{review.TotalScore}点）";
                 }
                 else
                 {
-                    TodayStatus = "🆕 開始済み（未入力）";
+                    var entries = _db.GetEntriesByDay(todayDay.Id);
+                    TodayStatus = entries.Count > 0 ? "📝 入力中..." : "🚀 開始済み";
                 }
             }
             else
             {
-                HasTodaySession = false;
-                TodayStatus = "❌ 未開始";
+                TodayStatus = "まだ開始していません";
             }
+
+            // 最近の記録
+            var days = _db.GetRecentDays(10);
+            var items = days.Select(d =>
+            {
+                var review = _db.GetReviewByDay(d.Id);
+                var mindsetNames = d.GetFocusMindsetList()
+                    .Select(id => MindsetDefinitions.GetMindsetShortName(id))
+                    .ToList();
+
+                return new MsDayListItem
+                {
+                    DayId = d.Id,
+                    DateKey = d.DateKey,
+                    FocusMindsets = string.Join(", ", mindsetNames),
+                    TotalScore = review?.TotalScore,
+                    IsToday = d.DateKey == today
+                };
+            }).ToList();
+
+            RecentDays = new ObservableCollection<MsDayListItem>(items);
+            StatusMessage = $"継続 {ConsecutiveDays} 日";
         }
 
         private void StartToday()
         {
-            var today = _db.GetOrCreateToday();
-            _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, today.Id);
+            var dayId = _db.GetOrCreateToday();
+            _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, dayId);
         }
 
         private void ContinueToday()
         {
-            var today = DateTime.Now.ToString("yyyy-MM-dd");
+            var today = DateTime.Today.ToString("yyyy-MM-dd");
             var todayDay = _db.GetDayByDate(today);
             if (todayDay != null)
             {
                 _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, todayDay.Id);
             }
-        }
-
-        private void OpenDay(MsDay? day)
-        {
-            if (day == null) return;
-
-            var review = _db.GetReviewByDay(day.Id);
-            if (review != null)
-            {
-                // レビュー済みなら履歴表示
-                _mainViewModel.CurrentView = new MindsetLabHistoryViewModel(_mainViewModel, _db, day.Id);
-            }
             else
             {
-                // 未完了ならセッション続行
-                _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, day.Id);
+                StartToday();
             }
         }
+
+        private void OpenDay(int dayId)
+        {
+            _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, dayId);
+        }
+
+        private void ViewHistory()
+        {
+            _mainViewModel.CurrentView = new MindsetLabHistoryViewModel(_mainViewModel, _db);
+        }
+    }
+
+    /// <summary>
+    /// 日別リスト表示用アイテム
+    /// </summary>
+    public class MsDayListItem
+    {
+        public int DayId { get; set; }
+        public string DateKey { get; set; } = string.Empty;
+        public string FocusMindsets { get; set; } = string.Empty;
+        public int? TotalScore { get; set; }
+        public bool IsToday { get; set; }
+
+        public string ScoreDisplay => TotalScore.HasValue ? $"{TotalScore}点" : "-";
+        public string DateDisplay => IsToday ? $"{DateKey} (今日)" : DateKey;
     }
 }

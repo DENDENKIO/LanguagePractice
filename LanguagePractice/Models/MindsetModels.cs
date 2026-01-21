@@ -1,90 +1,70 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LanguagePractice.Models
 {
-    /// <summary>
-    /// MindsetLab プロファイル
-    /// </summary>
-    public class MsProfile
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string CreatedAt { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// MindsetLab 日単位のセッション
-    /// </summary>
+    // ========== Day ==========
     public class MsDay
     {
         public int Id { get; set; }
-        public string DateKey { get; set; } = string.Empty; // 例: 2026-01-21
-        public string FocusMindsets { get; set; } = string.Empty; // JSON: "1,2,5"
-        public string StartRitual { get; set; } = string.Empty;
-        public string EndRitual { get; set; } = string.Empty;
+        public string DateKey { get; set; } = string.Empty;
+        public string FocusMindsets { get; set; } = string.Empty;
+        public string Scene { get; set; } = string.Empty;
+        public string? StartRitual { get; set; }
+        public string? EndRitual { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
 
-        // 表示用
         public List<int> GetFocusMindsetList()
         {
             if (string.IsNullOrEmpty(FocusMindsets)) return new List<int>();
-            var result = new List<int>();
-            foreach (var s in FocusMindsets.Split(',', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (int.TryParse(s.Trim(), out int n)) result.Add(n);
-            }
-            return result;
+            return FocusMindsets.Split(new[] { ',', '、' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => int.TryParse(s.Trim(), out int n) ? n : 0)
+                .Where(n => n >= 1 && n <= 6)
+                .ToList();
         }
     }
 
-    /// <summary>
-    /// MindsetLab ドリル入力項目
-    /// </summary>
+    // ========== Entry ==========
     public class MsEntry
     {
         public int Id { get; set; }
         public int DayId { get; set; }
-        public string EntryType { get; set; } = string.Empty; // 例: A1_TITLE, B1_METAPHOR
+        public string EntryType { get; set; } = string.Empty;
         public string BodyText { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// MindsetLab AIステップログ
-    /// </summary>
+    // ========== AiStepLog ==========
     public class MsAiStepLog
     {
         public int Id { get; set; }
         public int DayId { get; set; }
-        public string StepName { get; set; } = string.Empty; // MS_PLAN_GEN, MS_REVIEW_SCORE等
+        public string StepName { get; set; } = string.Empty;
         public string PromptText { get; set; } = string.Empty;
         public string RawOutput { get; set; } = string.Empty;
         public string ParsedJson { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty; // PENDING, DONE, ERROR
+        public string Status { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
+        public string? FinishedAt { get; set; }
     }
 
-    /// <summary>
-    /// MindsetLab AIレビュー結果
-    /// </summary>
+    // ========== Review ==========
     public class MsReview
     {
         public int Id { get; set; }
         public int DayId { get; set; }
         public int TotalScore { get; set; }
-        public string SubscoresJson { get; set; } = string.Empty; // {"A":8,"B":7,...}
+        public string SubscoresJson { get; set; } = string.Empty;
         public string Strengths { get; set; } = string.Empty;
         public string Weaknesses { get; set; } = string.Empty;
         public string NextDayPlan { get; set; } = string.Empty;
-        public string CoreLink { get; set; } = string.Empty; // 主題/感情/問い候補
+        public string CoreLink { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// MindsetLab エクスポートログ
-    /// </summary>
+    // ========== ExportLog ==========
     public class MsExportLog
     {
         public int Id { get; set; }
@@ -93,93 +73,16 @@ namespace LanguagePractice.Models
         public string CreatedAt { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// 6マインドセットの定義（固定）
-    /// </summary>
-    public static class MindsetDefinitions
-    {
-        public static readonly Dictionary<int, MindsetInfo> All = new()
-        {
-            { 1, new MindsetInfo(1, "世界を素材として見る", "日常を素材化して回収する", new[] {
-                new DrillDef("A1_TITLE", "場面にタイトル", "最低3つ"),
-                new DrillDef("A2_PERSPECTIVE", "視点3通り", "1人称/三人称/物の視点"),
-                new DrillDef("A3_WHY5", "Why×5", "1テーマ")
-            })},
-            { 2, new MindsetInfo(2, "比喩で翻訳", "比喩を毎日生成・破壊・再構築する", new[] {
-                new DrillDef("B1_METAPHOR", "新しい比喩を1つ", ""),
-                new DrillDef("B2_DESTROY", "既存比喩を壊して3変形", ""),
-                new DrillDef("B3_ABSTRACT", "抽象→具体物", "孤独/不安/希望など")
-            })},
-            { 3, new MindsetInfo(3, "観察を対話として扱う", "対話として行い描写素材を増やす", new[] {
-                new DrillDef("C1_OBSERVE10", "1物10分観察", "形/質感/語りかけ"),
-                new DrillDef("C2_NEGATIVE", "ネガティブ・スペース記述", "間・距離・余白"),
-                new DrillDef("C3_QUESTION", "対象に質問", "最低3問")
-            })},
-            { 4, new MindsetInfo(4, "経験を錬金術で変換", "事実/感情/普遍で変換し核へ接続", new[] {
-                new DrillDef("D1_ALCHEMY", "3層記録", "事実/感情/普遍"),
-                new DrillDef("D2_SYNESTHESIA", "感情→色/音/触感へ変換", ""),
-                new DrillDef("D3_FAILURE", "失敗を素材化", "物語の一部にする")
-            })},
-            { 5, new MindsetInfo(5, "メタ認知（第二の自分）", "第二の自分として稼働させ自己評価→改善", new[] {
-                new DrillDef("E1_NOWLOG", "今日の「今なにしてる？」ログ", "3回でも可、目標10回"),
-                new DrillDef("E2_FRIEND", "友人に助言するなら？", ""),
-                new DrillDef("E3_SCORE", "10点採点＋理由3つ", "")
-            })},
-            { 6, new MindsetInfo(6, "ルーティンを儀式化", "儀式として設計し習慣化に乗せる", new[] {
-                new DrillDef("F1_SANCTUARY", "聖域（場所/条件）定義", ""),
-                new DrillDef("F2_START", "始まりの儀式", "固定動作3つ"),
-                new DrillDef("F3_END", "終わりの儀式", "固定動作2つ"),
-                new DrillDef("F4_PLAN", "明日の実行計画", "時間ブロック")
-            })}
-        };
-
-        public static string GetMindsetName(int id) => All.TryGetValue(id, out var m) ? m.Name : $"Mindset {id}";
-    }
-
-    public class MindsetInfo
-    {
-        public int Id { get; }
-        public string Name { get; }
-        public string Description { get; }
-        public DrillDef[] Drills { get; }
-
-        public MindsetInfo(int id, string name, string description, DrillDef[] drills)
-        {
-            Id = id;
-            Name = name;
-            Description = description;
-            Drills = drills;
-        }
-    }
-
-    public class DrillDef
-    {
-        public string EntryType { get; }
-        public string Title { get; }
-        public string Hint { get; }
-
-        public DrillDef(string entryType, string title, string hint)
-        {
-            EntryType = entryType;
-            Title = title;
-            Hint = hint;
-        }
-    }
-
-    /// <summary>
-    /// AI生成用：今日のミッション
-    /// </summary>
+    // ========== AI結果モデル ==========
     public class MsPlanResult
     {
         public List<int> FocusMindsets { get; set; } = new();
+        public string Scene { get; set; } = string.Empty;
         public List<string> Tasks { get; set; } = new();
-        public string StartRitual { get; set; } = string.Empty;
-        public string EndRitual { get; set; } = string.Empty;
+        public string? StartRitual { get; set; }
+        public string? EndRitual { get; set; }
     }
 
-    /// <summary>
-    /// AI生成用：レビュー結果
-    /// </summary>
     public class MsReviewResult
     {
         public int TotalScore { get; set; }
@@ -188,5 +91,146 @@ namespace LanguagePractice.Models
         public List<string> Weaknesses { get; set; } = new();
         public string NextDayPlan { get; set; } = string.Empty;
         public string CoreLink { get; set; } = string.Empty;
+    }
+
+    // ========== ドリル定義 ==========
+    public class DrillDef
+    {
+        public string EntryType { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Hint { get; set; } = string.Empty;
+    }
+
+    public class MindsetInfo
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ShortName { get; set; } = string.Empty;
+        public List<DrillDef> Drills { get; set; } = new();
+    }
+
+    // ========== マインドセット定義 ==========
+    public static class MindsetDefinitions
+    {
+        public static readonly Dictionary<int, MindsetInfo> All = new()
+        {
+            {
+                1, new MindsetInfo
+                {
+                    Id = 1,
+                    Name = "世界を素材として見る",
+                    ShortName = "素材化",
+                    Drills = new List<DrillDef>
+                    {
+                        new() { EntryType = "A1_TITLE", Title = "場面にタイトル", Hint = "最低3つ" },
+                        new() { EntryType = "A2_VIEWPOINT", Title = "視点3通り", Hint = "1人称/三人称/物の視点" },
+                        new() { EntryType = "A3_WHY5", Title = "Why×5", Hint = "1テーマを深掘り" }
+                    }
+                }
+            },
+            {
+                2, new MindsetInfo
+                {
+                    Id = 2,
+                    Name = "比喩で翻訳",
+                    ShortName = "比喩",
+                    Drills = new List<DrillDef>
+                    {
+                        new() { EntryType = "B1_METAPHOR", Title = "新しい比喩を1つ", Hint = "比喩で翻訳" },
+                        new() { EntryType = "B2_DESTROY", Title = "既存比喩を壊して3変形", Hint = "比喩で翻訳" },
+                        new() { EntryType = "B3_ABSTRACT", Title = "抽象→具体物", Hint = "孤独/不安/希望など" }
+                    }
+                }
+            },
+            {
+                3, new MindsetInfo
+                {
+                    Id = 3,
+                    Name = "観察を対話として扱う",
+                    ShortName = "観察",
+                    Drills = new List<DrillDef>
+                    {
+                        new() { EntryType = "C1_OBSERVE10", Title = "1物10分観察", Hint = "形/質感/語りかけ" },
+                        new() { EntryType = "C2_NEGATIVE", Title = "ネガティブ・スペース記述", Hint = "間・距離・余白" },
+                        new() { EntryType = "C3_QUESTION", Title = "対象に質問", Hint = "最低3問" }
+                    }
+                }
+            },
+            {
+                4, new MindsetInfo
+                {
+                    Id = 4,
+                    Name = "経験を錬金術で変換",
+                    ShortName = "錬金術",
+                    Drills = new List<DrillDef>
+                    {
+                        new() { EntryType = "D1_ALCHEMY", Title = "3層記録", Hint = "事実/感情/普遍" },
+                        new() { EntryType = "D2_SYNESTHESIA", Title = "感情→色/音/触感へ変換", Hint = "共感覚的変換" },
+                        new() { EntryType = "D3_FAILURE", Title = "失敗を素材化", Hint = "物語の一部にする" }
+                    }
+                }
+            },
+            {
+                5, new MindsetInfo
+                {
+                    Id = 5,
+                    Name = "メタ認知（第二の自分）",
+                    ShortName = "メタ認知",
+                    Drills = new List<DrillDef>
+                    {
+                        new() { EntryType = "E1_NOWLOG", Title = "今なにしてる？ログ", Hint = "3回以上、目標10回" },
+                        new() { EntryType = "E2_FRIEND", Title = "友人に助言するなら？", Hint = "客観視" },
+                        new() { EntryType = "E3_SCORE", Title = "10点採点＋理由3つ", Hint = "自己評価" }
+                    }
+                }
+            },
+            {
+                6, new MindsetInfo
+                {
+                    Id = 6,
+                    Name = "ルーティンを儀式化",
+                    ShortName = "儀式化",
+                    Drills = new List<DrillDef>
+                    {
+                        new() { EntryType = "F1_SANCTUARY", Title = "聖域定義", Hint = "場所/条件" },
+                        new() { EntryType = "F2_START", Title = "始まりの儀式", Hint = "固定動作3つ" },
+                        new() { EntryType = "F3_END", Title = "終わりの儀式", Hint = "固定動作2つ" },
+                        new() { EntryType = "F4_PLAN", Title = "明日の実行計画", Hint = "時間ブロック" }
+                    }
+                }
+            }
+        };
+
+        /// <summary>
+        /// マインドセット名を取得
+        /// </summary>
+        public static string GetMindsetName(int id)
+        {
+            return All.TryGetValue(id, out var info) ? info.Name : $"マインドセット{id}";
+        }
+
+        /// <summary>
+        /// マインドセットの短縮名を取得
+        /// </summary>
+        public static string GetMindsetShortName(int id)
+        {
+            return All.TryGetValue(id, out var info) ? info.ShortName : $"M{id}";
+        }
+
+        /// <summary>
+        /// 全ドリルを取得
+        /// </summary>
+        public static List<DrillDef> GetAllDrills()
+        {
+            return All.Values.SelectMany(m => m.Drills).ToList();
+        }
+
+        /// <summary>
+        /// 特定マインドセットのドリルを取得
+        /// </summary>
+        public static List<DrillDef> GetDrillsByMindset(int mindsetId)
+        {
+            return All.TryGetValue(mindsetId, out var info) ? info.Drills : new List<DrillDef>();
+        }
     }
 }

@@ -2,45 +2,53 @@
 using LanguagePractice.Models;
 using LanguagePractice.Services;
 using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows;
 using System.Windows.Input;
 
 namespace LanguagePractice.ViewModels
 {
     /// <summary>
-    /// MindsetLab 履歴詳細画面 ViewModel
-    /// 仕様書2 第4.4章 / 第7.1章準拠
+    /// MindsetLab 履歴表示 ViewModel
     /// </summary>
     public class MindsetLabHistoryViewModel : ViewModelBase
     {
+        private readonly MainViewModel _mainViewModel;
         private readonly MindsetDatabaseService _db;
         private readonly MindsetExportService _exportService;
-        private readonly MainViewModel _mainViewModel;
-        private readonly int _dayId;
 
-        private MsDay _day = new();
-        public MsDay Day
+        private ObservableCollection<MsDayHistoryItem> _days = new();
+        public ObservableCollection<MsDayHistoryItem> Days
         {
-            get => _day;
-            set { _day = value; OnPropertyChanged(); }
+            get => _days;
+            set { _days = value; OnPropertyChanged(); }
         }
 
-        private List<MsEntry> _entries = new();
-        public List<MsEntry> Entries
+        private MsDayHistoryItem? _selectedDay;
+        public MsDayHistoryItem? SelectedDay
         {
-            get => _entries;
-            set { _entries = value; OnPropertyChanged(); }
+            get => _selectedDay;
+            set
+            {
+                _selectedDay = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasSelectedDay));
+                if (value != null)
+                {
+                    LoadDayDetail(value.DayId);
+                }
+            }
         }
 
-        private MsReview? _review;
-        public MsReview? Review
-        {
-            get => _review;
-            set { _review = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasReview)); }
-        }
+        public bool HasSelectedDay => SelectedDay != null;
 
-        public bool HasReview => Review != null;
+        private string _detailText = string.Empty;
+        public string DetailText
+        {
+            get => _detailText;
+            set { _detailText = value; OnPropertyChanged(); }
+        }
 
         private string _statusMessage = string.Empty;
         public string StatusMessage
@@ -49,92 +57,162 @@ namespace LanguagePractice.ViewModels
             set { _statusMessage = value; OnPropertyChanged(); }
         }
 
-        // 表示用のグループ化されたエントリ
-        private List<MindsetEntryGroup> _groupedEntries = new();
-        public List<MindsetEntryGroup> GroupedEntries
-        {
-            get => _groupedEntries;
-            set { _groupedEntries = value; OnPropertyChanged(); }
-        }
-
         // コマンド
-        public ICommand ExportCommand { get; }
         public ICommand BackCommand { get; }
+        public ICommand RefreshCommand { get; }
+        public ICommand ExportCommand { get; }
+        public ICommand OpenDayCommand { get; }
 
-        public MindsetLabHistoryViewModel(MainViewModel mainViewModel, MindsetDatabaseService db, int dayId)
+        public MindsetLabHistoryViewModel(MainViewModel mainViewModel, MindsetDatabaseService db)
         {
             _mainViewModel = mainViewModel;
             _db = db;
-            _dayId = dayId;
             _exportService = new MindsetExportService(db);
 
-            ExportCommand = new RelayCommand(Export);
             BackCommand = new RelayCommand(GoBack);
+            RefreshCommand = new RelayCommand(LoadData);
+            ExportCommand = new RelayCommand(ExportSelected, () => SelectedDay != null);
+            OpenDayCommand = new RelayCommand<int>(OpenDay);
 
             LoadData();
         }
 
+        // dayId を受け取るオーバーロード（互換性のため）
+        public MindsetLabHistoryViewModel(MainViewModel mainViewModel, MindsetDatabaseService db, int dayId)
+            : this(mainViewModel, db)
+        {
+            // dayId がある場合はその日を選択
+            var targetDay = Days.FirstOrDefault(d => d.DayId == dayId);
+            if (targetDay != null)
+            {
+                SelectedDay = targetDay;
+            }
+        }
+
         private void LoadData()
         {
-            Day = _db.GetDay(_dayId) ?? new MsDay();
-            Entries = _db.GetEntriesByDay(_dayId);
-            Review = _db.GetReviewByDay(_dayId);
-
-            // グループ化
-            var groups = new List<MindsetEntryGroup>();
-            var groupedDict = new Dictionary<int, List<MsEntry>>();
-
-            foreach (var entry in Entries)
+            var days = _db.GetAllDays();
+            var items = days.Select(d =>
             {
-                int mindsetId = GetMindsetIdFromEntryType(entry.EntryType);
-                if (!groupedDict.ContainsKey(mindsetId))
-                    groupedDict[mindsetId] = new List<MsEntry>();
-                groupedDict[mindsetId].Add(entry);
-            }
-
-            foreach (var kvp in groupedDict.OrderBy(x => x.Key))
-            {
-                groups.Add(new MindsetEntryGroup
+                var review = _db.GetReviewByDay(d.Id);
+                return new MsDayHistoryItem
                 {
-                    MindsetId = kvp.Key,
-                    MindsetName = MindsetDefinitions.GetMindsetName(kvp.Key),
-                    Entries = kvp.Value
-                });
+                    DayId = d.Id,
+                    DateKey = d.DateKey,
+                    FocusMindsets = d.FocusMindsets,
+                    Scene = d.Scene,
+                    TotalScore = review?.TotalScore,
+                    HasReview = review != null
+                };
+            }).ToList();
+
+            Days = new ObservableCollection<MsDayHistoryItem>(items);
+            StatusMessage = $"{Days.Count}件の記録";
+        }
+
+        private void LoadDayDetail(int dayId)
+        {
+            var day = _db.GetDay(dayId);
+            if (day == null)
+            {
+                DetailText = "(データなし)";
+                return;
             }
 
-            GroupedEntries = groups;
+            var entries = _db.GetEntriesByDay(dayId);
+            var review = _db.GetReviewByDay(dayId);
 
-            StatusMessage = $"履歴: {Day.DateKey}";
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"【日付】{day.DateKey}");
+            sb.AppendLine();
+
+            if (!string.IsNullOrEmpty(day.FocusMindsets))
+            {
+                var mindsetNames = day.GetFocusMindsetList()
+                    .Select(id => $"{id}. {MindsetDefinitions.GetMindsetName(id)}")
+                    .ToList();
+                sb.AppendLine($"【重点マインドセット】");
+                sb.AppendLine(string.Join("\n", mindsetNames));
+                sb.AppendLine();
+            }
+
+            if (!string.IsNullOrEmpty(day.Scene))
+            {
+                sb.AppendLine($"【シーン】");
+                sb.AppendLine(day.Scene);
+                sb.AppendLine();
+            }
+
+            if (entries.Count > 0)
+            {
+                sb.AppendLine("【入力記録】");
+                foreach (var entry in entries.OrderBy(e => e.EntryType))
+                {
+                    var drillTitle = GetDrillTitle(entry.EntryType);
+                    sb.AppendLine($"[{entry.EntryType}] {drillTitle}");
+                    sb.AppendLine(entry.BodyText);
+                    sb.AppendLine();
+                }
+            }
+
+            if (review != null)
+            {
+                sb.AppendLine("【AIレビュー】");
+                sb.AppendLine($"総合スコア: {review.TotalScore}点");
+
+                if (!string.IsNullOrEmpty(review.Strengths))
+                {
+                    sb.AppendLine($"強み: {review.Strengths}");
+                }
+                if (!string.IsNullOrEmpty(review.Weaknesses))
+                {
+                    sb.AppendLine($"改善点: {review.Weaknesses}");
+                }
+                if (!string.IsNullOrEmpty(review.NextDayPlan))
+                {
+                    sb.AppendLine($"明日の課題: {review.NextDayPlan}");
+                }
+                if (!string.IsNullOrEmpty(review.CoreLink))
+                {
+                    sb.AppendLine($"核候補: {review.CoreLink}");
+                }
+            }
+
+            DetailText = sb.ToString();
         }
 
-        private int GetMindsetIdFromEntryType(string entryType)
+        private string GetDrillTitle(string entryType)
         {
-            if (entryType.StartsWith("A")) return 1;
-            if (entryType.StartsWith("B")) return 2;
-            if (entryType.StartsWith("C")) return 3;
-            if (entryType.StartsWith("D")) return 4;
-            if (entryType.StartsWith("E")) return 5;
-            if (entryType.StartsWith("F")) return 6;
-            return 0;
+            foreach (var m in MindsetDefinitions.All.Values)
+            {
+                foreach (var d in m.Drills)
+                {
+                    if (d.EntryType == entryType) return d.Title;
+                }
+            }
+            return entryType;
         }
 
-        private void Export()
+        private void ExportSelected()
         {
+            if (SelectedDay == null) return;
+
             try
             {
-                var filePath = _exportService.ExportDay(_dayId);
-                StatusMessage = $"エクスポート完了: {filePath}";
-
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = filePath,
-                    UseShellExecute = true
-                });
+                var path = _exportService.ExportDay(SelectedDay.DayId);
+                StatusMessage = $"エクスポート完了: {path}";
+                MessageBox.Show($"エクスポートしました:\n{path}", "完了", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                StatusMessage = $"エクスポートエラー: {ex.Message}";
+                StatusMessage = $"エクスポート失敗: {ex.Message}";
+                MessageBox.Show($"エクスポートに失敗しました:\n{ex.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void OpenDay(int dayId)
+        {
+            _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, dayId);
         }
 
         private void GoBack()
@@ -144,14 +222,18 @@ namespace LanguagePractice.ViewModels
     }
 
     /// <summary>
-    /// マインドセット別エントリグループ（表示用）
+    /// 履歴表示用アイテム
     /// </summary>
-    public class MindsetEntryGroup
+    public class MsDayHistoryItem
     {
-        public int MindsetId { get; set; }
-        public string MindsetName { get; set; } = string.Empty;
-        public List<MsEntry> Entries { get; set; } = new();
+        public int DayId { get; set; }
+        public string DateKey { get; set; } = string.Empty;
+        public string FocusMindsets { get; set; } = string.Empty;
+        public string Scene { get; set; } = string.Empty;
+        public int? TotalScore { get; set; }
+        public bool HasReview { get; set; }
 
-        public string DisplayHeader => $"Mindset {MindsetId}: {MindsetName}";
+        public string ScoreDisplay => TotalScore.HasValue ? $"{TotalScore}点" : "-";
+        public string FocusDisplay => string.IsNullOrEmpty(FocusMindsets) ? "-" : FocusMindsets;
     }
 }

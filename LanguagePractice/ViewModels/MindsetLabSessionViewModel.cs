@@ -79,36 +79,43 @@ namespace LanguagePractice.ViewModels
             set { _statusMessage = value; OnPropertyChanged(); }
         }
 
+        // ミッション表示用
         private ObservableCollection<string> _todayTasks = new();
         public ObservableCollection<string> TodayTasks
         {
             get => _todayTasks;
-            set { _todayTasks = value; OnPropertyChanged(); }
+            set { _todayTasks = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasTasks)); }
         }
+        public bool HasTasks => TodayTasks != null && TodayTasks.Count > 0;
 
-        private string _startRitual = string.Empty;
-        public string StartRitual
+        private string _scene = string.Empty;
+        public string Scene
         {
-            get => _startRitual;
-            set { _startRitual = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasStartRitual)); }
+            get => _scene;
+            set { _scene = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasScene)); }
         }
-
-        public bool HasStartRitual => !string.IsNullOrWhiteSpace(StartRitual);
-
-        private string _endRitual = string.Empty;
-        public string EndRitual
-        {
-            get => _endRitual;
-            set { _endRitual = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasEndRitual)); }
-        }
-
-        public bool HasEndRitual => !string.IsNullOrWhiteSpace(EndRitual);
+        public bool HasScene => !string.IsNullOrWhiteSpace(Scene);
 
         private string _focusMindsetDisplay = string.Empty;
         public string FocusMindsetDisplay
         {
             get => _focusMindsetDisplay;
             set { _focusMindsetDisplay = value; OnPropertyChanged(); }
+        }
+
+        // 互換性のため残す（非表示）
+        private string _startRitual = string.Empty;
+        public string StartRitual
+        {
+            get => _startRitual;
+            set { _startRitual = value; OnPropertyChanged(); }
+        }
+
+        private string _endRitual = string.Empty;
+        public string EndRitual
+        {
+            get => _endRitual;
+            set { _endRitual = value; OnPropertyChanged(); }
         }
 
         // コマンド
@@ -119,6 +126,7 @@ namespace LanguagePractice.ViewModels
         public ICommand BackCommand { get; }
         public ICommand CopyPromptCommand { get; }
         public ICommand SwitchToManualCommand { get; }
+        public ICommand ViewHistoryCommand { get; }
 
         public MindsetLabSessionViewModel(MainViewModel mainViewModel, MindsetDatabaseService db, int dayId)
         {
@@ -136,6 +144,7 @@ namespace LanguagePractice.ViewModels
             BackCommand = new RelayCommand(GoBack);
             CopyPromptCommand = new RelayCommand(CopyPrompt);
             SwitchToManualCommand = new RelayCommand(SwitchToManual);
+            ViewHistoryCommand = new RelayCommand(ViewHistory);
 
             LoadData();
         }
@@ -157,6 +166,12 @@ namespace LanguagePractice.ViewModels
                 {
                     ApplyPlanResult(result);
                 }
+            }
+
+            // DBからシーンを復元
+            if (!string.IsNullOrEmpty(Day.Scene))
+            {
+                Scene = Day.Scene;
             }
 
             // ドリル入力項目を生成
@@ -206,7 +221,10 @@ namespace LanguagePractice.ViewModels
             // タスク
             TodayTasks = new ObservableCollection<string>(result.Tasks);
 
-            // 儀式
+            // シーン
+            Scene = result.Scene ?? string.Empty;
+
+            // 儀式（互換性のため残すが非表示）
             StartRitual = result.StartRitual ?? string.Empty;
             EndRitual = result.EndRitual ?? string.Empty;
 
@@ -218,13 +236,16 @@ namespace LanguagePractice.ViewModels
                     .ToList();
                 FocusMindsetDisplay = string.Join("\n", names);
             }
+            else
+            {
+                FocusMindsetDisplay = "(未設定)";
+            }
 
             // デバッグ出力
             System.Diagnostics.Debug.WriteLine($"=== ApplyPlanResult ===");
-            System.Diagnostics.Debug.WriteLine($"Tasks: {TodayTasks.Count}");
-            System.Diagnostics.Debug.WriteLine($"StartRitual: [{StartRitual}]");
-            System.Diagnostics.Debug.WriteLine($"EndRitual: [{EndRitual}]");
             System.Diagnostics.Debug.WriteLine($"FocusMindsets: {string.Join(",", result.FocusMindsets)}");
+            System.Diagnostics.Debug.WriteLine($"Scene: [{Scene}]");
+            System.Diagnostics.Debug.WriteLine($"Tasks: {TodayTasks.Count}");
         }
 
         /// <summary>
@@ -238,58 +259,76 @@ namespace LanguagePractice.ViewModels
             IsManualMode = false;
             StatusMessage = "AIミッション生成を開始...";
 
-            // 前回の弱点を取得
-            string? previousWeakness = GetPreviousWeakness();
-            var consecutiveDays = _db.GetConsecutiveDays();
-
-            // プロンプト生成
-            PlanPrompt = _promptBuilder.BuildPlanGenPrompt(consecutiveDays, previousWeakness);
-
-            // AI設定取得
-            string siteId = _settingsService.GetValue("AI_SITE_ID", "GENSPARK");
-            var profile = AiSiteCatalog.GetByIdOrDefault(siteId);
-            string aiUrl = _settingsService.GetValue("AI_URL", profile.Url);
-
-            if (string.IsNullOrEmpty(aiUrl))
+            try
             {
-                aiUrl = profile.Url;
-            }
+                // 前回の弱点を取得
+                string? previousWeakness = GetPreviousWeakness();
+                var consecutiveDays = _db.GetConsecutiveDays();
 
-            // プロンプトをクリップボードにコピー
-            Clipboard.SetText(PlanPrompt);
-            StatusMessage = "プロンプトをコピーしました。ブラウザを開きます...";
+                // プロンプト生成
+                PlanPrompt = _promptBuilder.BuildPlanGenPrompt(consecutiveDays, previousWeakness);
 
-            // BrowserWindow（WebView2）を使用
-            var browser = new BrowserWindow(aiUrl, PlanPrompt, profile.Id);
+                // AI設定取得
+                string siteId = _settingsService.GetValue("AI_SITE_ID", "GENSPARK");
+                var profile = AiSiteCatalog.GetByIdOrDefault(siteId);
+                string aiUrl = _settingsService.GetValue("AI_URL", profile.Url);
 
-            if (browser.ShowDialog() == true)
-            {
-                string result = browser.ResultText;
-
-                // デバッグ: 取得した結果を出力
-                System.Diagnostics.Debug.WriteLine($"=== BrowserWindow Result ===");
-                System.Diagnostics.Debug.WriteLine($"Length: {result?.Length ?? 0}");
-                System.Diagnostics.Debug.WriteLine(result ?? "(null)");
-                System.Diagnostics.Debug.WriteLine($"=== END ===");
-
-                if (!string.IsNullOrWhiteSpace(result))
+                if (string.IsNullOrEmpty(aiUrl))
                 {
-                    StatusMessage = "AI出力を取得しました。解析中...";
-                    ProcessPlanOutput(result);
+                    aiUrl = profile.Url;
+                }
+
+                // プロンプトをクリップボードにコピー
+                Clipboard.SetText(PlanPrompt);
+                StatusMessage = "プロンプトをコピーしました。ブラウザを開きます...";
+
+                // BrowserWindow（WebView2）を使用
+                var browser = new BrowserWindow(aiUrl, PlanPrompt, profile.Id);
+
+                if (browser.ShowDialog() == true)
+                {
+                    string result = browser.ResultText;
+
+                    // デバッグ: 取得した結果を出力
+                    System.Diagnostics.Debug.WriteLine($"=== BrowserWindow Result ===");
+                    System.Diagnostics.Debug.WriteLine($"Length: {result?.Length ?? 0}");
+                    if (result != null && result.Length > 500)
+                    {
+                        System.Diagnostics.Debug.WriteLine(result.Substring(0, 500) + "...");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine(result ?? "(null)");
+                    }
+                    System.Diagnostics.Debug.WriteLine($"=== END ===");
+
+                    if (!string.IsNullOrWhiteSpace(result))
+                    {
+                        StatusMessage = "AI出力を取得しました。解析中...";
+                        ProcessPlanOutput(result);
+                    }
+                    else
+                    {
+                        StatusMessage = "自動取得できませんでした。手動で貼り付けてください。";
+                        IsManualMode = true;
+                    }
                 }
                 else
                 {
-                    StatusMessage = "自動取得できませんでした。手動で貼り付けてください。";
+                    StatusMessage = "ブラウザ操作がキャンセルされました。手動モードで続行できます。";
                     IsManualMode = true;
                 }
             }
-            else
+            catch (Exception ex)
             {
-                StatusMessage = "ブラウザ操作がキャンセルされました。";
+                StatusMessage = $"エラー: {ex.Message}";
                 IsManualMode = true;
+                System.Diagnostics.Debug.WriteLine($"GeneratePlanAuto error: {ex}");
             }
-
-            IsGenerating = false;
+            finally
+            {
+                IsGenerating = false;
+            }
         }
 
         private string? GetPreviousWeakness()
@@ -321,12 +360,11 @@ namespace LanguagePractice.ViewModels
                 return;
             }
 
-            // デバッグ: パース結果
-            System.Diagnostics.Debug.WriteLine($"=== ParsePlanGen Result ===");
-            System.Diagnostics.Debug.WriteLine($"FocusMindsets: {string.Join(",", result.FocusMindsets)}");
-            System.Diagnostics.Debug.WriteLine($"Tasks: {result.Tasks.Count}");
-            System.Diagnostics.Debug.WriteLine($"StartRitual: [{result.StartRitual}]");
-            System.Diagnostics.Debug.WriteLine($"EndRitual: [{result.EndRitual}]");
+            // FocusMindsetsが空の場合は警告
+            if (result.FocusMindsets.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("警告: FocusMindsetsが空です");
+            }
 
             // DBに保存
             var logId = _db.CreateAiStepLog(_dayId, "MS_PLAN_GEN", PlanPrompt);
@@ -334,7 +372,7 @@ namespace LanguagePractice.ViewModels
 
             // Day更新
             var focusMindsets = string.Join(",", result.FocusMindsets);
-            _db.UpdateDay(_dayId, focusMindsets, result.StartRitual, result.EndRitual);
+            _db.UpdateDay(_dayId, focusMindsets, result.Scene, result.StartRitual, result.EndRitual);
 
             // 表示更新
             IsPlanGenerated = true;
@@ -367,7 +405,7 @@ namespace LanguagePractice.ViewModels
             PlanPrompt = _promptBuilder.BuildPlanGenPrompt(consecutiveDays, previousWeakness);
 
             IsManualMode = true;
-            StatusMessage = "手動モードに切り替えました。";
+            StatusMessage = "手動モードに切り替えました。プロンプトをコピーしてAIに貼り付けてください。";
         }
 
         private void CopyPrompt()
@@ -385,14 +423,16 @@ namespace LanguagePractice.ViewModels
 
         private void SaveAll()
         {
+            int savedCount = 0;
             foreach (var item in DrillInputs)
             {
                 if (!string.IsNullOrWhiteSpace(item.BodyText))
                 {
                     _db.UpsertEntry(_dayId, item.EntryType, item.BodyText);
+                    savedCount++;
                 }
             }
-            StatusMessage = $"💾 保存しました（{DateTime.Now:HH:mm:ss}）";
+            StatusMessage = $"💾 {savedCount}件を保存しました（{DateTime.Now:HH:mm:ss}）";
         }
 
         private void GoToReview()
@@ -404,6 +444,11 @@ namespace LanguagePractice.ViewModels
         private void GoBack()
         {
             _mainViewModel.CurrentView = new MindsetLabHomeViewModel(_mainViewModel);
+        }
+
+        private void ViewHistory()
+        {
+            _mainViewModel.CurrentView = new MindsetLabHistoryViewModel(_mainViewModel, _db, _dayId);
         }
     }
 
