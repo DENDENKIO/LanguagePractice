@@ -68,7 +68,7 @@ namespace LanguagePractice.ViewModels
 
             StartTodayCommand = new RelayCommand(StartToday);
             ContinueTodayCommand = new RelayCommand(ContinueToday);
-            OpenDayCommand = new RelayCommand<int>(OpenDay);
+            OpenDayCommand = new RelayCommand<MsDayListItem>(OpenDay);
             ViewHistoryCommand = new RelayCommand(ViewHistory);
             RefreshCommand = new RelayCommand(LoadData);
 
@@ -146,9 +146,10 @@ namespace LanguagePractice.ViewModels
             }
         }
 
-        private void OpenDay(int dayId)
+        private void OpenDay(MsDayListItem? item)
         {
-            _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, dayId);
+            if (item == null) return;
+            _mainViewModel.CurrentView = new MindsetLabSessionViewModel(_mainViewModel, _db, item.DayId);
         }
 
         private void ViewHistory()
