@@ -54,13 +54,18 @@ namespace LanguagePractice.Views
             return count;
         }
 
+        /// <summary>
+        /// AIの応答部分を抽出する（プロンプト部分を除外）
+        /// </summary>
         private string ExtractAiResponse(string fullText)
         {
             string sentinel = LpConstants.DONE_SENTINEL;
 
+            // プロンプト内のセンチネル数をスキップして、AI出力のセンチネルを探す
             int skipCount = _promptSentinelCount;
             int pos = 0;
 
+            // プロンプト内のセンチネルをスキップ
             for (int i = 0; i < skipCount; i++)
             {
                 pos = fullText.IndexOf(sentinel, pos, StringComparison.Ordinal);
@@ -68,27 +73,50 @@ namespace LanguagePractice.Views
                 pos += sentinel.Length;
             }
 
-            string aiResponseStart = pos > 0 ? fullText.Substring(pos) : fullText;
+            // プロンプト部分の後から検索開始
+            string afterPrompt = pos > 0 ? fullText.Substring(pos) : fullText;
 
-            foreach (var marker in LpConstants.MarkerBegin.Values)
+            // AI出力内のセンチネルを探す
+            int aiSentinelPos = afterPrompt.IndexOf(sentinel, StringComparison.Ordinal);
+            if (aiSentinelPos == -1)
             {
-                int beginPos = aiResponseStart.IndexOf(marker, StringComparison.Ordinal);
-                if (beginPos != -1)
+                // センチネルが見つからない場合は全体を返す
+                return afterPrompt;
+            }
+
+            // センチネルの前にあるマーカーを探す
+            // 全てのマーカーをチェック
+            int bestMarkerPos = -1;
+            string bestMarkerName = "";
+
+            foreach (var kvp in LpConstants.MarkerBegin)
+            {
+                string marker = kvp.Value;
+                int markerPos = afterPrompt.IndexOf(marker, StringComparison.Ordinal);
+
+                // マーカーがセンチネルより前にあり、最も後ろにあるマーカーを選ぶ
+                // （AIの出力開始位置に最も近いマーカー）
+                if (markerPos != -1 && markerPos < aiSentinelPos)
                 {
-                    int sentinelPos = aiResponseStart.IndexOf(sentinel, beginPos, StringComparison.Ordinal);
-                    if (sentinelPos != -1)
-                        return aiResponseStart.Substring(beginPos, sentinelPos + sentinel.Length - beginPos);
+                    if (markerPos > bestMarkerPos)
+                    {
+                        bestMarkerPos = markerPos;
+                        bestMarkerName = marker;
+                    }
                 }
             }
 
-            int lastSentinelPos = aiResponseStart.LastIndexOf(sentinel, StringComparison.Ordinal);
-            if (lastSentinelPos != -1)
+            if (bestMarkerPos != -1)
             {
-                int startPos = Math.Max(0, lastSentinelPos - 5000);
-                return aiResponseStart.Substring(startPos, lastSentinelPos + sentinel.Length - startPos);
+                // マーカーからセンチネルまでを抽出
+                string extracted = afterPrompt.Substring(bestMarkerPos, aiSentinelPos + sentinel.Length - bestMarkerPos);
+                return extracted;
             }
 
-            return aiResponseStart;
+            // マーカーが見つからない場合、センチネルの手前の適切な範囲を返す
+            // 最後のセンチネルを含む範囲を返す
+            int extractStart = Math.Max(0, aiSentinelPos - 10000); // 最大10000文字前から
+            return afterPrompt.Substring(extractStart, aiSentinelPos + sentinel.Length - extractStart);
         }
 
         private async void InitializeBrowser()
@@ -187,7 +215,6 @@ namespace LanguagePractice.Views
 (function() {{
   var prompt = ""{safePrompt}"";
 
-  // あなたのHTMLに合わせて ask-input を最優先
   var input =
     document.querySelector('#ask-input[contenteditable=""true""][data-lexical-editor=""true""]') ||
     document.querySelector('#ask-input[contenteditable=""true""]') ||
@@ -196,10 +223,8 @@ namespace LanguagePractice.Views
 
   if (!input) return 'INPUT_NOT_FOUND';
 
-  // フォーカス
   input.focus();
 
-  // 既存内容を全選択→削除（Lexicalはこの方が安全）
   try {{
     var sel = window.getSelection();
     var range = document.createRange();
@@ -209,7 +234,6 @@ namespace LanguagePractice.Views
     document.execCommand('delete');
   }} catch(e) {{}}
 
-  // 文章挿入：Lexicalに効きやすい insertText を優先
   var ok = false;
   try {{
     ok = document.execCommand('insertText', false, prompt);
@@ -217,7 +241,6 @@ namespace LanguagePractice.Views
     ok = false;
   }}
 
-  // 失敗したらフォールバック（最悪でも表示はされる）
   if (!ok) {{
     try {{
       input.textContent = prompt;
@@ -225,7 +248,6 @@ namespace LanguagePractice.Views
     }} catch(e) {{}}
   }}
 
-  // 送信ボタン（aria-label=送信 を最優先）
   setTimeout(() => {{
     var sendBtn =
       document.querySelector('button[aria-label=""送信""]') ||
@@ -234,7 +256,6 @@ namespace LanguagePractice.Views
 
     if (sendBtn) sendBtn.click();
     else {{
-      // Enter送信（Perplexityは基本Enter送信）
       input.dispatchEvent(new KeyboardEvent('keydown', {{ bubbles: true, key: 'Enter', code: 'Enter', keyCode: 13 }}));
     }}
   }}, 500);
@@ -244,11 +265,7 @@ namespace LanguagePractice.Views
 ";
             }
 
-            // ------- Genspark（今まで通り汎用でOK）-------
-            if (_siteId == "GENSPARK")
-                return generic;
-
-            // ------- その他は汎用 -------
+            // ------- Genspark / その他は汎用 -------
             return generic;
         }
 
@@ -291,11 +308,16 @@ namespace LanguagePractice.Views
 
                 int currentLength = currentText.Length;
 
+                // ページ全体のセンチネル数をカウント
                 int totalSentinelCount = CountSentinel(currentText);
+
+                // プロンプト内のセンチネル数 + 1 = AIが出力したセンチネルが必要
                 int requiredCount = _promptSentinelCount + 1;
 
-                StatusText.Text = $"監視中: Sentinel={totalSentinelCount}/{requiredCount}必要, 長さ={currentLength}, 安定={_stableCount}/{StableThreshold}";
+                StatusMessage = $"監視中: Sentinel={totalSentinelCount}/{requiredCount}必要, 長さ={currentLength}, 安定={_stableCount}/{StableThreshold}";
+                StatusText.Text = StatusMessage;
 
+                // センチネルが必要数に達していない場合は待機
                 if (totalSentinelCount < requiredCount)
                 {
                     _stableCount = 0;
@@ -303,6 +325,7 @@ namespace LanguagePractice.Views
                     return;
                 }
 
+                // テキスト長が安定しているかチェック
                 if (currentLength != _lastTextLength)
                 {
                     _stableCount = 0;
@@ -313,6 +336,7 @@ namespace LanguagePractice.Views
                     _stableCount++;
                 }
 
+                // 安定したら結果を取得
                 if (_stableCount >= StableThreshold)
                 {
                     _monitorTimer.Stop();
@@ -320,9 +344,11 @@ namespace LanguagePractice.Views
 
                     await Task.Delay(2000);
 
+                    // 最終テキスト取得
                     rawJson = await webView.CoreWebView2.ExecuteScriptAsync(scriptGet);
                     string fullText = JsonSerializer.Deserialize<string>(rawJson) ?? "";
 
+                    // AI応答部分を抽出
                     ResultText = ExtractAiResponse(fullText);
 
                     DialogResult = true;
@@ -334,6 +360,8 @@ namespace LanguagePractice.Views
                 // 無視して継続
             }
         }
+
+        private string StatusMessage = "";
 
         private async void ManualInject_Click(object sender, RoutedEventArgs e)
         {

@@ -18,7 +18,10 @@ namespace LanguagePractice.Helpers
         CORE_EXTRACT,
         REVISION_FULL,
         PERSONA_VERIFY_ASSIST,
-        PRACTICE_SESSION
+        PRACTICE_SESSION,
+        // MindsetLab用
+        MS_PLAN_GEN,
+        MS_REVIEW_SCORE
     }
 
     public enum RunStatus
@@ -83,7 +86,10 @@ namespace LanguagePractice.Helpers
             { OperationKind.STUDY_CARD, "<<<STUDY_CARD_BEGIN>>>" },
             { OperationKind.CORE_EXTRACT, "<<<CORE_BEGIN>>>" },
             { OperationKind.REVISION_FULL, "<<<REVISION_PACK_BEGIN>>>" },
-            { OperationKind.PERSONA_VERIFY_ASSIST, "<<<PERSONA_VERIFY_BEGIN>>>" }
+            { OperationKind.PERSONA_VERIFY_ASSIST, "<<<PERSONA_VERIFY_BEGIN>>>" },
+            // MindsetLab用
+            { OperationKind.MS_PLAN_GEN, "---BEGIN MS_PLAN_GEN---" },
+            { OperationKind.MS_REVIEW_SCORE, "---BEGIN MS_REVIEW_SCORE---" }
         };
 
         // マーカー定義（終了）
@@ -98,7 +104,16 @@ namespace LanguagePractice.Helpers
             { OperationKind.STUDY_CARD, "<<<STUDY_CARD_END>>>" },
             { OperationKind.CORE_EXTRACT, "<<<CORE_END>>>" },
             { OperationKind.REVISION_FULL, "<<<REVISION_PACK_END>>>" },
-            { OperationKind.PERSONA_VERIFY_ASSIST, "<<<PERSONA_VERIFY_END>>>" }
+            { OperationKind.PERSONA_VERIFY_ASSIST, "<<<PERSONA_VERIFY_END>>>" },
+            // MindsetLab用
+            { OperationKind.MS_PLAN_GEN, "---END MS_PLAN_GEN---" },
+            { OperationKind.MS_REVIEW_SCORE, "---END MS_REVIEW_SCORE---" }
         };
+
+        // MindsetLab用マーカー（直接参照用）
+        public const string MS_PLAN_BEGIN = "---BEGIN MS_PLAN_GEN---";
+        public const string MS_PLAN_END = "---END MS_PLAN_GEN---";
+        public const string MS_REVIEW_BEGIN = "---BEGIN MS_REVIEW_SCORE---";
+        public const string MS_REVIEW_END = "---END MS_REVIEW_SCORE---";
     }
 }

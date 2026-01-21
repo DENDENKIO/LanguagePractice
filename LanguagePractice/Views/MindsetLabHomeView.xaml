@@ -1,0 +1,116 @@
+﻿<UserControl x:Class="LanguagePractice.Views.MindsetLabHomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="900">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ヘッダー -->
+        <Border Grid.Row="0" Background="#1565C0" Padding="20,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🧠 MindsetLab" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="凡人ではないレベル思考習慣×生活設計トレーニング" FontSize="12" Foreground="#BBDEFB" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="継続:" Foreground="White" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding ConsecutiveDays}" FontSize="20" FontWeight="Bold" Foreground="#FFEB3B" VerticalAlignment="Center"/>
+                    <TextBlock Text="日" Foreground="White" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 今日のセッション -->
+        <Border Grid.Row="1" Background="#E3F2FD" Padding="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="今日のセッション" FontSize="16" FontWeight="Bold" Foreground="#1565C0"/>
+                    <TextBlock Text="{Binding TodayStatus}" FontSize="14" Foreground="#424242" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="📝 開始" Command="{Binding StartTodayCommand}"
+                            Visibility="{Binding HasTodaySession, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                            Padding="20,10" FontSize="14"
+                            Background="#4CAF50" Foreground="White" BorderThickness="0"
+                            Cursor="Hand" Margin="0,0,10,0"/>
+                    <Button Content="▶ 続ける" Command="{Binding ContinueTodayCommand}"
+                            Visibility="{Binding HasTodaySession, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Padding="20,10" FontSize="14"
+                            Background="#FF9800" Foreground="White" BorderThickness="0"
+                            Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 履歴一覧 -->
+        <Border Grid.Row="2" Margin="20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="📅 履歴" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Button Content="🔄" Command="{Binding RefreshCommand}" 
+                            Margin="10,0,0,0" Padding="8,4" ToolTip="更新"/>
+                </StackPanel>
+
+                <DataGrid Grid.Row="1" ItemsSource="{Binding RecentDays}" 
+                          SelectedItem="{Binding SelectedDay}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          SelectionMode="Single"
+                          GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column"
+                          BorderThickness="1"
+                          BorderBrush="#DDDDDD">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="日付" Binding="{Binding DateKey}" Width="120"/>
+                        <DataGridTextColumn Header="重点マインドセット" Binding="{Binding FocusMindsets}" Width="150"/>
+                        <DataGridTextColumn Header="開始儀式" Binding="{Binding StartRitual}" Width="*"/>
+                        <DataGridTextColumn Header="作成日時" Binding="{Binding CreatedAt}" Width="150"/>
+                        <DataGridTemplateColumn Header="操作" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="開く" 
+                                            Command="{Binding DataContext.OpenDayCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"
+                                            Padding="10,4"
+                                            Background="#1565C0" Foreground="White" BorderThickness="0"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- 空状態 -->
+                <TextBlock Text="履歴がありません。&#x0a;「📝 開始」から今日のセッションを始めてください。"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="#888888" FontSize="14" TextAlignment="Center"
+                           Visibility="{Binding RecentDays.Count, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Collapsed}"
+                           Grid.Row="1"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

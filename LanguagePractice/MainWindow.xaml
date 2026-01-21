@@ -48,6 +48,20 @@
         <DataTemplate DataType="{x:Type viewmodels:PoetryLabCompareViewModel}">
             <views:PoetryLabCompareView />
         </DataTemplate>
+
+        <!-- MindsetLab DataTemplates -->
+        <DataTemplate DataType="{x:Type viewmodels:MindsetLabHomeViewModel}">
+            <views:MindsetLabHomeView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:MindsetLabSessionViewModel}">
+            <views:MindsetLabSessionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:MindsetLabReviewViewModel}">
+            <views:MindsetLabReviewView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:MindsetLabHistoryViewModel}">
+            <views:MindsetLabHistoryView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -74,6 +88,11 @@
                 <Button Content="🎭 PoetryLab" Height="40" Margin="0,2"
                         Command="{Binding ShowPoetryLabCommand}"
                         Background="#7B1FA2" Foreground="White" FontWeight="Bold" FontSize="14"/>
+
+                <!-- MindsetLab ボタン（追加） -->
+                <Button Content="🧠 MindsetLab" Height="40" Margin="0,5"
+                        Command="{Binding ShowMindsetLabCommand}"
+                        Background="#1565C0" Foreground="White" FontWeight="Bold" FontSize="14"/>
 
                 <Separator Margin="0,20"/>
 
